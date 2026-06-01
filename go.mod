@@ -3,6 +3,7 @@ module github.com/mydelren/context7-proxy
 go 1.24.4
 
 require (
+	github.com/google/uuid v1.6.0
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.1
 )
