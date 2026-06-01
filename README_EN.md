@@ -23,18 +23,21 @@ This project solves all of that: the admin manages all API key lifecycles centra
 
 - **Unified Endpoint** — all agents access Context7 API through one proxy address. No need to distribute real API keys.
 - **Smart Key Pool** — automatically distributes requests across multiple keys for full quota utilization. Transparent failover on rate limits.
-  - **Per-Key Limits** — set maximum requests per key, auto-skip when exhausted.
+  - **Per-Key Limits** — set maximum requests per key (default 1000), auto-skip when exhausted.
   - **Manual Cooldown** — pause any key on demand, reusing the cooldown logic.
+  - **Monthly Reset** — auto-reset all key usage counters on the 1st of each month.
 - **Multi-Member Management**:
   - Admin account + Member Token system replaces single Master Key.
+  - **Member Key Assignment** — assign specific API keys to members, or leave unassigned to follow global strategy.
+  - **Per-Member Strategy** — each member can have their own key selection strategy (least used / round robin / random), falling back to global if unset.
   - Members can only use the proxy, not access the management panel.
   - Request logs track which member initiated each request.
 - **Web Management UI**:
   - **Dashboard**: stat cards + 24h request chart for team-wide visibility.
-  - **Keys**: add, delete, enable/disable API keys, set limits, manual cooldown.
-  - **Members**: create members, view tokens, delete members (admin-only).
+  - **Keys**: add, delete, enable/disable API keys, set limits, manual cooldown, global strategy switch.
+  - **Members**: create members, view tokens, assign keys, set strategy, delete members (admin-only).
   - **Logs**: detailed request logs with status code filter, shows member info.
-  - **Settings**: view Master Key (legacy mode), auto-generated MCP client config.
+  - **Settings**: view Master Key (legacy mode), change password, auto-generated MCP client config.
 - **i18n & Themes** — Chinese/English toggle, dark/light theme.
 - **Single Binary** — Go binary with embedded UI, one-command Docker deploy.
 
@@ -106,9 +109,10 @@ Log example: `2026/06/01 10:01:48 Admin account created — username: admin, pas
 Open `http://<server-ip>:8070` and log in with `admin` and the password from the logs.
 
 After login:
-1. Add your team's `ctx7sk_...` keys in the **Keys** tab
-2. Create members in the **Members** tab to get member tokens (for Agent configuration)
-3. Distribute member tokens to team members for Agent setup
+1. Change your admin password in **Settings**
+2. Add your team's `ctx7sk_...` keys in the **Keys** tab
+3. Create members in the **Members** tab — optionally assign specific keys and set per-member strategy, then get member tokens (for Agent configuration)
+4. Distribute member tokens to team members for Agent setup
 
 > Tip: Member tokens replace the old Master Key for proxy access. The Master Key still works for management panel login (legacy mode).
 
