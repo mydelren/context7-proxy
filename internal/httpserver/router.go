@@ -13,12 +13,12 @@ import (
 )
 
 type Deps struct {
-	MasterKey *services.MasterKeyService
-	Keys      *services.KeyService
-	Logs      *services.LogService
-	Stats     *services.StatsService
-	Proxy     *services.ProxyService
-	StaticFS  embed.FS
+	Auth     *services.AuthService
+	Keys     *services.KeyService
+	Logs     *services.LogService
+	Stats    *services.StatsService
+	Proxy    *services.ProxyService
+	StaticFS embed.FS
 }
 
 func NewRouter(deps Deps) http.Handler {
@@ -28,7 +28,26 @@ func NewRouter(deps Deps) http.Handler {
 
 	r.GET("/healthz", func(c *gin.Context) { c.JSON(200, gin.H{"ok": true}) })
 
-	mgmt := r.Group("/manage", authMW(deps.MasterKey))
+	// Public: login
+	r.POST("/manage/login", func(c *gin.Context) {
+		var req struct {
+			Username string `json:"username" binding:"required"`
+			Password string `json:"password" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(400, gin.H{"error": "username and password required"})
+			return
+		}
+		token, err := deps.Auth.Login(req.Username, req.Password)
+		if err != nil {
+			c.JSON(401, gin.H{"error": "invalid_credentials"})
+			return
+		}
+		c.JSON(200, gin.H{"token": token, "role": "admin"})
+	})
+
+	// Admin-only management routes
+	mgmt := r.Group("/manage", authMW(deps.Auth), requireAdmin())
 	{
 		mgmt.GET("/keys", func(c *gin.Context) {
 			keys, err := deps.Keys.List(c.Request.Context())
@@ -55,13 +74,17 @@ func NewRouter(deps Deps) http.Handler {
 			c.JSON(200, k)
 		})
 		mgmt.PUT("/keys/:id", func(c *gin.Context) {
-			id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+			id, ok := parseID(c)
+			if !ok {
+				return
+			}
 			var req struct {
-				Alias    *string `json:"alias"`
-				IsActive *bool   `json:"is_active"`
+				Alias       *string `json:"alias"`
+				IsActive    *bool   `json:"is_active"`
+				MaxRequests *int64  `json:"max_requests"`
 			}
 			c.ShouldBindJSON(&req)
-			k, err := deps.Keys.Update(c.Request.Context(), uint(id), req.Alias, req.IsActive)
+			k, err := deps.Keys.Update(c.Request.Context(), id, req.Alias, req.IsActive, req.MaxRequests)
 			if err != nil {
 				c.JSON(500, gin.H{"error": err.Error()})
 				return
@@ -69,13 +92,27 @@ func NewRouter(deps Deps) http.Handler {
 			c.JSON(200, k)
 		})
 		mgmt.DELETE("/keys/:id", func(c *gin.Context) {
-			id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
-			deps.Keys.Delete(c.Request.Context(), uint(id))
+			id, ok := parseID(c)
+			if !ok {
+				return
+			}
+			deps.Keys.Delete(c.Request.Context(), id)
+			c.JSON(200, gin.H{"ok": true})
+		})
+		mgmt.POST("/keys/:id/cooldown", func(c *gin.Context) {
+			id, ok := parseID(c)
+			if !ok {
+				return
+			}
+			deps.Keys.MarkCooldown(c.Request.Context(), id)
 			c.JSON(200, gin.H{"ok": true})
 		})
 		mgmt.GET("/keys/:id/raw", func(c *gin.Context) {
-			id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
-			key, err := deps.Keys.GetRaw(c.Request.Context(), uint(id))
+			id, ok := parseID(c)
+			if !ok {
+				return
+			}
+			key, err := deps.Keys.GetRaw(c.Request.Context(), id)
 			if err != nil {
 				c.JSON(500, gin.H{"error": err.Error()})
 				return
@@ -143,25 +180,56 @@ func NewRouter(deps Deps) http.Handler {
 			c.JSON(200, data)
 		})
 		mgmt.GET("/settings/master-key", func(c *gin.Context) {
-			c.JSON(200, gin.H{"master_key": deps.MasterKey.Get()})
+			c.JSON(200, gin.H{"master_key": deps.Auth.LegacyKey()})
 		})
-		mgmt.POST("/settings/master-key/reset", func(c *gin.Context) {
-			k, err := deps.MasterKey.Reset(c.Request.Context())
+		// Members management
+		mgmt.GET("/members", func(c *gin.Context) {
+			members, err := deps.Auth.ListMembers(c.Request.Context())
 			if err != nil {
-				c.JSON(500, gin.H{"error": "reset_failed"})
+				c.JSON(500, gin.H{"error": err.Error()})
 				return
 			}
-			c.JSON(200, gin.H{"master_key": k})
+			c.JSON(200, members)
+		})
+		mgmt.POST("/members", func(c *gin.Context) {
+			var req struct {
+				Name string `json:"name" binding:"required"`
+			}
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(400, gin.H{"error": "name required"})
+				return
+			}
+			m, err := deps.Auth.CreateMember(c.Request.Context(), req.Name)
+			if err != nil {
+				c.JSON(500, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(200, gin.H{"id": m.ID, "name": m.Name, "token": m.Token})
+		})
+		mgmt.DELETE("/members/:id", func(c *gin.Context) {
+			id, ok := parseID(c)
+			if !ok {
+				return
+			}
+			if err := deps.Auth.DeleteMember(c.Request.Context(), id); err != nil {
+				c.JSON(404, gin.H{"error": "member_not_found"})
+				return
+			}
+			c.JSON(200, gin.H{"ok": true})
 		})
 	}
 
-	r.NoRoute(func(c *gin.Context) {
+	// Proxy routes — admin and members can both use
+	r.NoRoute(authMW(deps.Auth), func(c *gin.Context) {
 		path := c.Request.URL.Path
 		if strings.HasPrefix(path, "/v1/") || strings.HasPrefix(path, "/api/") {
 			body, _ := c.GetRawData()
+			memberID := c.GetUint("member_id")
+			memberName := c.GetString("member_name")
 			resp, err := deps.Proxy.Do(c.Request.Context(),
 				c.Request.Method, path, c.Request.URL.RawQuery,
-				c.Request.Header, body, c.ClientIP())
+				c.Request.Header, body, c.ClientIP(),
+				memberID, memberName)
 			if err != nil {
 				c.JSON(500, gin.H{"error": "proxy_error", "message": err.Error()})
 				return
@@ -180,14 +248,43 @@ func NewRouter(deps Deps) http.Handler {
 	return r
 }
 
-func authMW(mk *services.MasterKeyService) gin.HandlerFunc {
+func authMW(a *services.AuthService) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		key := strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
-		if key == "" {
-			key = c.Query("api_key")
+		token := strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
+		if token == "" {
+			token = c.Query("api_key")
 		}
-		if !mk.Validate(key) {
+		if token == "" {
 			c.JSON(401, gin.H{"error": "unauthorized"})
+			c.Abort()
+			return
+		}
+		role, memberID, memberName := a.Validate(token)
+		if role == "" {
+			c.JSON(401, gin.H{"error": "unauthorized"})
+			c.Abort()
+			return
+		}
+		c.Set("role", role)
+		c.Set("member_id", memberID)
+		c.Set("member_name", memberName)
+		c.Next()
+	}
+}
+
+func parseID(c *gin.Context) (uint, bool) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || id == 0 {
+		c.JSON(400, gin.H{"error": "invalid id"})
+		return 0, false
+	}
+	return uint(id), true
+}
+
+func requireAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.GetString("role") != "admin" {
+			c.JSON(403, gin.H{"error": "admin_only"})
 			c.Abort()
 			return
 		}

@@ -22,7 +22,7 @@ func Open(dbPath string) (*gorm.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
-	if err := gormDB.AutoMigrate(&models.APIKey{}, &models.RequestLog{}, &models.MasterKey{}); err != nil {
+	if err := gormDB.AutoMigrate(&models.APIKey{}, &models.RequestLog{}, &models.MasterKey{}, &models.Admin{}, &models.Member{}); err != nil {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
 	return gormDB, nil

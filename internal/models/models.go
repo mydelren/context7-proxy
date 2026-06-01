@@ -1,7 +1,24 @@
 // internal/models/models.go
 package models
 
-import "time"
+import (
+	"time"
+)
+
+type Admin struct {
+	ID           uint   `gorm:"primaryKey" json:"id"`
+	Username     string `gorm:"uniqueIndex;not null" json:"username"`
+	PasswordHash string `gorm:"not null" json:"-"`
+}
+
+type Member struct {
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	Name        string    `gorm:"not null" json:"name"`
+	Token       string    `gorm:"uniqueIndex;not null" json:"-"`
+	TokenSuffix string    `gorm:"-" json:"token_suffix"`
+	IsActive    bool      `gorm:"not null;default:true" json:"is_active"`
+	CreatedAt   time.Time `json:"created_at"`
+}
 
 type APIKey struct {
 	ID         uint       `gorm:"primaryKey" json:"id"`
@@ -10,7 +27,8 @@ type APIKey struct {
 	IsActive   bool       `gorm:"not null;default:true" json:"is_active"`
 	IsInvalid  bool       `gorm:"not null;default:false" json:"is_invalid"`
 	CooldownAt *time.Time `json:"cooldown_at"`
-	UsedCount  int64      `gorm:"not null;default:0" json:"used_count"`
+	UsedCount   int64      `gorm:"not null;default:0" json:"used_count"`
+	MaxRequests int64      `gorm:"not null;default:0" json:"max_requests"`
 	LastUsedAt *time.Time `json:"last_used_at"`
 	CreatedAt  time.Time  `json:"created_at"`
 	UpdatedAt  time.Time  `json:"updated_at"`
@@ -21,6 +39,8 @@ type RequestLog struct {
 	RequestID  string    `gorm:"index;not null" json:"request_id"`
 	KeyID      uint      `gorm:"column:key_id;index" json:"key_id"`
 	KeyAlias   string    `json:"key_alias"`
+	MemberID   uint      `gorm:"index" json:"member_id"`
+	MemberName string    `json:"member_name"`
 	Method     string    `gorm:"not null;default:''" json:"method"`
 	Endpoint   string    `gorm:"index;not null" json:"endpoint"`
 	StatusCode int       `json:"status_code"`

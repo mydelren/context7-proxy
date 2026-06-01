@@ -97,11 +97,13 @@ canvas { max-height: 220px; }
       <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">C7</div>
       <h1 class="text-2xl font-bold tracking-tight">Context7 Proxy</h1>
     </div>
-    <input id="masterKeyInput" type="password" data-i18n-placeholder="masterKey"
-      class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 mb-4 font-mono text-sm transition bg-gray-100 dk-input">
+    <input id="loginUsername" type="text" data-i18n-placeholder="username"
+      class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 mb-3 text-sm transition bg-gray-100 dk-input">
+    <input id="loginPassword" type="password" data-i18n-placeholder="password"
+      class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 mb-4 text-sm transition bg-gray-100 dk-input">
     <button onclick="login()" class="w-full py-3 rounded-xl font-semibold text-white text-sm tracking-wide transition hover:brightness-110 active:scale-[0.98]"
       style="background: linear-gradient(135deg, #6366f1, #7c3aed);" data-i18n="login">Login</button>
-    <p id="authError" class="text-red-400 text-sm mt-3 hidden text-center"></p>
+    <p id="authError" class="text-red-500 text-sm mt-3 hidden text-center"></p>
   </div>
 </div>
 
@@ -126,6 +128,10 @@ canvas { max-height: 220px; }
       <a class="nav-item flex items-center gap-3 px-5 py-2.5 cursor-pointer" data-tab="logs" onclick="switchTab('logs')">
         <svg class="nav-icon w-[18px] h-[18px] text-gray-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 5h6"/><path d="M9 12h6M9 16h6"/></svg>
         <span class="nav-label text-sm text-gray-400" data-i18n="logs">Logs</span>
+      </a>
+      <a class="nav-item members-only flex items-center gap-3 px-5 py-2.5 cursor-pointer" data-tab="members" onclick="switchTab('members')">
+        <svg class="nav-icon w-[18px] h-[18px] text-gray-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span class="nav-label text-sm text-gray-400" data-i18n="members">Members</span>
       </a>
       <a class="nav-item flex items-center gap-3 px-5 py-2.5 cursor-pointer" data-tab="settings" onclick="switchTab('settings')">
         <svg class="nav-icon w-[18px] h-[18px] text-gray-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2m-9-11h2m18 0h2m-3.3-6.7-1.4 1.4M6.7 17.3l-1.4 1.4m0-13.4 1.4 1.4m10.6 10.6 1.4 1.4"/></svg>
@@ -188,6 +194,7 @@ canvas { max-height: 220px; }
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="alias">Alias</th>
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="status">Status</th>
               <th class="text-right p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="used">Used</th>
+              <th class="text-right p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="limit">Limit</th>
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="lastUsed">Last Used</th>
               <th class="text-right p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="actions">Actions</th>
             </tr></thead><tbody></tbody>
@@ -211,6 +218,7 @@ canvas { max-height: 220px; }
           <table class="w-full text-sm" id="logsTable">
             <thead><tr class="border-b border-gray-200 dark:border-gray-700">
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="time">Time</th>
+              <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="member">Member</th>
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="method">Method</th>
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="path">Path</th>
               <th class="text-right p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="status">Status</th>
@@ -221,12 +229,36 @@ canvas { max-height: 220px; }
         <div class="flex justify-center gap-1.5 mt-4" id="logPagination"></div>
       </section>
 
+      <!-- Members -->
+      <section id="tab-members" class="hidden">
+        <div class="flex justify-between items-center mb-5">
+          <h2 class="text-lg font-bold" data-i18n="members">Members</h2>
+          <button onclick="showMemberModal()" class="px-4 py-2 rounded-xl text-sm font-semibold text-white transition hover:brightness-110 active:scale-[0.97]"
+            style="background: linear-gradient(135deg, #6366f1, #7c3aed);" data-i18n="addMember">Add Member</button>
+        </div>
+        <div class="card border rounded-xl overflow-hidden">
+          <table class="w-full text-sm" id="membersTable">
+            <thead><tr class="border-b border-gray-200 dark:border-gray-700">
+              <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400">ID</th>
+              <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="name">Name</th>
+              <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="memberToken">Token</th>
+              <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="status">Status</th>
+              <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="createdAt">Created</th>
+              <th class="text-right p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="actions">Actions</th>
+            </tr></thead><tbody></tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- Settings -->
       <section id="tab-settings" class="hidden">
         <div class="card border rounded-xl p-6 max-w-xl">
           <h2 class="text-lg font-bold mb-6" data-i18n="settings">Settings</h2>
           <div class="mb-6">
-            <label class="text-xs font-semibold uppercase tracking-widest text-gray-400 block mb-2" data-i18n="masterKey">Master Key</label>
+            <label class="text-xs font-semibold uppercase tracking-widest text-gray-400 block mb-2">
+              <span data-i18n="masterKey">Master Key</span>
+              <span class="ml-2 px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" data-i18n="compatMode">Compat</span>
+            </label>
             <div class="flex gap-2">
               <div class="relative flex-1">
                 <input id="masterKeyDisplay" readonly type="password"
@@ -236,7 +268,6 @@ canvas { max-height: 220px; }
                 </button>
               </div>
               <button onclick="copyMasterKey()" class="px-4 py-2.5 rounded-xl text-xs font-medium border border-gray-200 dk-btn transition bg-gray-100" data-i18n="copy">Copy</button>
-              <button onclick="resetMasterKey()" class="px-4 py-2.5 rounded-xl text-xs font-medium text-red-500 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800/60 transition" data-i18n="reset">Reset</button>
             </div>
           </div>
           <div>
@@ -266,12 +297,46 @@ canvas { max-height: 220px; }
   </div>
 </div>
 
+<!-- Add Member Modal -->
+<div id="memberModal" class="modal-bg fixed inset-0 flex items-center justify-center hidden z-50">
+  <div class="card border rounded-2xl p-7 w-full max-w-md shadow-2xl" style="box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3);">
+    <h3 class="font-bold text-base mb-5" data-i18n="addMember">Add Member</h3>
+    <input id="newMemberName" data-i18n-placeholder="memberNamePlaceholder"
+      class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 mb-5 text-sm transition bg-gray-100 dk-input">
+    <div class="flex justify-end gap-2">
+      <button onclick="hideMemberModal()" class="px-5 py-2.5 rounded-xl text-sm font-medium border border-gray-200 dk-btn transition bg-gray-100" data-i18n="cancel">Cancel</button>
+      <button onclick="addMember()" class="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition hover:brightness-110 active:scale-[0.97]"
+        style="background: linear-gradient(135deg, #6366f1, #7c3aed);" data-i18n="add">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- Token Display Modal -->
+<div id="tokenModal" class="modal-bg fixed inset-0 flex items-center justify-center hidden z-50">
+  <div class="card border rounded-2xl p-7 w-full max-w-md shadow-2xl" style="box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3);">
+    <h3 class="font-bold text-base mb-3" data-i18n="memberCreated">Member Created</h3>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4" data-i18n="saveToken">Save this token — it won't be shown again.</p>
+    <div class="relative mb-5">
+      <input id="newTokenDisplay" readonly
+        class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 font-mono text-sm pr-10 bg-gray-100 dk-input">
+      <button onclick="copyNewToken()" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition p-1">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      </button>
+    </div>
+    <div class="flex justify-end">
+      <button onclick="hideTokenModal()" class="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition hover:brightness-110 active:scale-[0.97]"
+        style="background: linear-gradient(135deg, #6366f1, #7c3aed);" data-i18n="done">Done</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ============ I18N ============
 const T = {
   en: {
-    dashboard: 'Dashboard', keys: 'Keys', logs: 'Logs', settings: 'Settings',
+    dashboard: 'Dashboard', keys: 'Keys', logs: 'Logs', settings: 'Settings', members: 'Members',
     logout: 'Logout', login: 'Login', masterKey: 'Master Key',
+    username: 'Username', password: 'Password',
     apiKeys: 'API Keys', addKey: 'Add Key', alias: 'Alias', status: 'Status',
     used: 'Used', lastUsed: 'Last Used', actions: 'Actions',
     requestLogs: 'Request Logs', all: 'All', clear: 'Clear',
@@ -283,15 +348,23 @@ const T = {
     invalidKeys: 'Invalid Keys', requests24h: 'Requests (24h)',
     invalid: 'Invalid', cooling: 'Cooling', active: 'Active', disabled: 'Disabled',
     confirmDelete: 'Delete this key?', confirmClear: 'Clear all logs?',
-    confirmReset: 'Reset master key? You will need the new key to log in.',
     newMasterKey: 'New master key:', saveIt: 'Save it!',
-    errInvalid: 'Invalid master key', errNoKeys: 'No available keys',
+    errInvalid: 'Invalid credentials', errNoKeys: 'No available keys',
     disable: 'Disable', enable: 'Enable', delete: 'Delete',
     light: 'Light', dark: 'Dark',
+    limit: 'Limit', unlimited: 'Unlimited', enterLimit: 'Max requests (0 = unlimited):',
+    cooldown: 'Cooldown',
+    member: 'Member',
+    addMember: 'Add Member', name: 'Name', memberToken: 'Token', createdAt: 'Created',
+    memberNamePlaceholder: 'Member name', memberCreated: 'Member Created',
+    saveToken: "Save this token — it won't be shown again.", done: 'Done',
+    confirmDeleteMember: 'Delete this member?', unknownMember: '-',
+    compatMode: 'Legacy',
   },
   zh: {
-    dashboard: '仪表盘', keys: '密钥管理', logs: '请求日志', settings: '设置',
+    dashboard: '仪表盘', keys: '密钥管理', logs: '请求日志', settings: '设置', members: '成员管理',
     logout: '退出', login: '登录', masterKey: '主密钥',
+    username: '用户名', password: '密码',
     apiKeys: 'API 密钥', addKey: '添加密钥', alias: '别名', status: '状态',
     used: '使用次数', lastUsed: '最后使用', actions: '操作',
     requestLogs: '请求日志', all: '全部', clear: '清空',
@@ -303,17 +376,25 @@ const T = {
     invalidKeys: '失效密钥', requests24h: '请求量 (24h)',
     invalid: '失效', cooling: '冷却', active: '活跃', disabled: '禁用',
     confirmDelete: '确定删除此密钥？', confirmClear: '确定清空所有日志？',
-    confirmReset: '确定重置主密钥？重置后需要新密钥才能登录。',
     newMasterKey: '新主密钥：', saveIt: '请妥善保存！',
-    errInvalid: '主密钥无效', errNoKeys: '无可用密钥',
+    errInvalid: '用户名或密码错误', errNoKeys: '无可用密钥',
     disable: '禁用', enable: '启用', delete: '删除',
     light: '浅色', dark: '深色',
+    limit: '限额', unlimited: '无限', enterLimit: '最大请求次数（0 = 无限）：',
+    cooldown: '冷却',
+    member: '成员',
+    addMember: '添加成员', name: '名称', memberToken: '令牌', createdAt: '创建时间',
+    memberNamePlaceholder: '成员名称', memberCreated: '成员已创建',
+    saveToken: '请保存此令牌 — 不会再次显示。', done: '完成',
+    confirmDeleteMember: '确定删除此成员？', unknownMember: '-',
+    compatMode: '兼容模式',
   }
 };
 
 let lang = localStorage.getItem('c7p_lang') || 'en';
 let darkMode = localStorage.getItem('c7p_theme') !== 'light';
 let TOKEN = localStorage.getItem('c7p_token') || '';
+let ROLE = localStorage.getItem('c7p_role') || '';
 let chart = null;
 let keyVisible = false;
 
@@ -375,15 +456,21 @@ function toggleKeyVisibility() {
 
 // ============ API ============
 const api = {
+  login: (username, password) => fetch('/manage/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) }).then(r => r.ok ? r.json() : Promise.reject()),
   stats: () => fetch('/manage/stats', { headers: auth() }).then(r => r.json()),
   timeseries: () => fetch('/manage/stats/timeseries', { headers: auth() }).then(r => r.json()),
   keys: () => fetch('/manage/keys', { headers: auth() }).then(r => r.json()),
   addKey: (alias, key) => fetch('/manage/keys', { method: 'POST', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ alias, key }) }).then(r => r.json()),
   delKey: id => fetch('/manage/keys/' + id, { method: 'DELETE', headers: auth() }).then(r => r.json()),
   toggleKey: (id, active) => fetch('/manage/keys/' + id, { method: 'PUT', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: active }) }).then(r => r.json()),
+  setLimit: (id, max) => fetch('/manage/keys/' + id, { method: 'PUT', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ max_requests: max }) }).then(r => r.json()),
+  cooldownKey: id => fetch('/manage/keys/' + id + '/cooldown', { method: 'POST', headers: auth() }).then(r => r.json()),
   logs: (p, f) => { const off = (p - 1) * 50; return fetch('/manage/logs?limit=50&offset=' + off + (f ? '&status_code=' + f : ''), { headers: auth() }).then(r => r.json()); },
   clearLogs: () => fetch('/manage/logs', { method: 'DELETE', headers: auth() }).then(r => r.json()),
-  resetKey: () => fetch('/manage/settings/master-key/reset', { method: 'POST', headers: auth() }).then(r => r.json()),
+  masterKey: () => fetch('/manage/settings/master-key', { headers: auth() }).then(r => r.json()),
+  members: () => fetch('/manage/members', { headers: auth() }).then(r => r.json()),
+  addMember: name => fetch('/manage/members', { method: 'POST', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) }).then(r => r.json()),
+  delMember: id => fetch('/manage/members/' + id, { method: 'DELETE', headers: auth() }).then(r => r.json()),
 };
 
 function auth() { return { 'Authorization': 'Bearer ' + TOKEN }; }
@@ -392,23 +479,29 @@ function fmtMs(ms) { return ms >= 1000 ? (ms / 1000).toFixed(1) + 's' : ms + 'ms
 
 // ============ Auth ============
 async function login() {
-  const key = document.getElementById('masterKeyInput').value.trim();
-  if (!key) return;
-  TOKEN = key;
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  if (!username || !password) return;
   try {
-    await api.stats();
-    localStorage.setItem('c7p_token', key);
+    const res = await api.login(username, password);
+    TOKEN = res.token;
+    ROLE = res.role || 'admin';
+    localStorage.setItem('c7p_token', TOKEN);
+    localStorage.setItem('c7p_role', ROLE);
     showApp();
   } catch {
     document.getElementById('authError').textContent = t('errInvalid');
     document.getElementById('authError').classList.remove('hidden');
     TOKEN = '';
+    ROLE = '';
   }
 }
 
 function logout() {
   TOKEN = '';
+  ROLE = '';
   localStorage.removeItem('c7p_token');
+  localStorage.removeItem('c7p_role');
   document.getElementById('app').classList.add('hidden');
   document.getElementById('authScreen').classList.remove('hidden');
 }
@@ -416,7 +509,15 @@ function logout() {
 async function showApp() {
   document.getElementById('authScreen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
-  document.getElementById('masterKeyDisplay').value = TOKEN;
+  // Hide members tab for non-admin
+  document.querySelectorAll('.members-only').forEach(el => {
+    el.classList.toggle('hidden', ROLE !== 'admin');
+  });
+  // Load master key for settings display
+  try {
+    const mkRes = await api.masterKey();
+    document.getElementById('masterKeyDisplay').value = mkRes.master_key || TOKEN;
+  } catch { document.getElementById('masterKeyDisplay').value = TOKEN; }
   document.getElementById('masterKeyDisplay').type = 'password';
   keyVisible = false;
   document.getElementById('eyeIcon').innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>';
@@ -430,8 +531,9 @@ async function showApp() {
 
 // ============ Tabs ============
 function switchTab(name) {
-  ['dashboard', 'keys', 'logs', 'settings'].forEach(tab => {
-    document.getElementById('tab-' + tab).classList.toggle('hidden', tab !== name);
+  ['dashboard', 'keys', 'logs', 'members', 'settings'].forEach(tab => {
+    const el = document.getElementById('tab-' + tab);
+    if (el) el.classList.toggle('hidden', tab !== name);
     document.querySelectorAll('[data-tab="' + tab + '"]').forEach(b => {
       b.classList.toggle('active', tab === name);
     });
@@ -440,6 +542,7 @@ function switchTab(name) {
   if (name === 'dashboard') loadDashboard();
   if (name === 'keys') loadKeys();
   if (name === 'logs') loadLogs(1);
+  if (name === 'members') loadMembers();
 }
 
 // ============ Dashboard ============
@@ -493,12 +596,18 @@ async function loadKeys() {
   };
   tbody.innerHTML = keys.map(k => {
     const s = st(k);
+    const limitDisplay = k.max_requests > 0 ? k.max_requests : '∞';
+    const limitTitle = k.max_requests > 0 ? k.max_requests : t('unlimited');
     return `<tr class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition">
       <td class="p-3 font-medium">${k.alias || '-'}</td>
       <td class="p-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium ${s.cls}">${s.text}</span></td>
       <td class="p-3 text-right font-mono text-xs">${k.used_count}</td>
+      <td class="p-3 text-right font-mono text-xs" title="${limitTitle}">
+        <span class="cursor-pointer hover:text-indigo-500 transition" onclick="editLimit(${k.id},${k.max_requests})">${limitDisplay}</span>
+      </td>
       <td class="p-3 text-xs text-gray-400">${fmtTime(k.last_used_at)}</td>
       <td class="p-3 text-right">
+        ${k.is_active && !k.is_invalid ? `<button onclick="cooldownKey(${k.id})" class="text-xs px-2.5 py-1 rounded-lg font-medium border border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition">${t('cooldown')}</button>` : ''}
         <button onclick="toggleKey(${k.id},${!k.is_active})" class="text-xs px-2.5 py-1 rounded-lg font-medium border border-gray-200 dk-btn transition bg-gray-100">${k.is_active ? t('disable') : t('enable')}</button>
         <button onclick="delKey(${k.id})" class="text-xs px-2.5 py-1 rounded-lg font-medium text-red-500 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800/60 transition ml-1">${t('delete')}</button>
       </td>
@@ -520,6 +629,15 @@ async function addKey() {
 
 async function toggleKey(id, active) { await api.toggleKey(id, active); loadKeys(); }
 async function delKey(id) { if (confirm(t('confirmDelete'))) { await api.delKey(id); loadKeys(); } }
+async function cooldownKey(id) { await api.cooldownKey(id); loadKeys(); }
+
+function editLimit(id, current) {
+  const val = prompt(t('enterLimit'), current || 0);
+  if (val === null) return;
+  const n = parseInt(val, 10);
+  if (isNaN(n) || n < 0) return;
+  api.setLimit(id, n).then(() => loadKeys());
+}
 
 // ============ Logs ============
 async function loadLogs(page) {
@@ -528,6 +646,7 @@ async function loadLogs(page) {
   const tbody = document.querySelector('#logsTable tbody');
   tbody.innerHTML = res.logs.map(l => `<tr class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition">
     <td class="p-3 text-xs text-gray-400 font-mono">${fmtTime(l.created_at)}</td>
+    <td class="p-3 text-xs text-gray-400">${l.member_name || t('unknownMember')}</td>
     <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-mono font-medium bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">${l.method}</span></td>
     <td class="p-3 font-mono text-xs">${l.endpoint}</td>
     <td class="p-3 text-right font-mono text-xs"><span class="${l.status_code >= 400 ? 'text-red-500' : 'text-emerald-500'}">${l.status_code}</span></td>
@@ -544,18 +663,6 @@ async function loadLogs(page) {
 async function clearLogs() { if (confirm(t('confirmClear'))) { await api.clearLogs(); loadLogs(1); } }
 
 // ============ Settings ============
-async function resetMasterKey() {
-  if (!confirm(t('confirmReset'))) return;
-  const res = await api.resetKey();
-  TOKEN = res.master_key;
-  localStorage.setItem('c7p_token', TOKEN);
-  document.getElementById('masterKeyDisplay').value = TOKEN;
-  document.getElementById('masterKeyDisplay').type = 'password';
-  keyVisible = false;
-  document.getElementById('eyeIcon').innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>';
-  alert(t('newMasterKey') + ' ' + TOKEN + '\n' + t('saveIt'));
-}
-
 function copyMasterKey() {
   const inp = document.getElementById('masterKeyDisplay');
   const realType = inp.type;
@@ -564,10 +671,61 @@ function copyMasterKey() {
   inp.type = realType;
 }
 
+// ============ Members ============
+async function loadMembers() {
+  const members = await api.members();
+  const tbody = document.querySelector('#membersTable tbody');
+  tbody.innerHTML = members.map(m => `<tr class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition">
+    <td class="p-3 font-mono text-xs text-gray-400">${m.id}</td>
+    <td class="p-3 font-medium">${m.name}</td>
+    <td class="p-3 font-mono text-xs text-gray-400">${m.token_suffix ? '********' + m.token_suffix : '-'}</td>
+    <td class="p-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium ${m.is_active ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300'}">${m.is_active ? t('active') : t('disabled')}</span></td>
+    <td class="p-3 text-xs text-gray-400">${fmtTime(m.created_at)}</td>
+    <td class="p-3 text-right">
+      <button onclick="delMember(${m.id})" class="text-xs px-2.5 py-1 rounded-lg font-medium text-red-500 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800/60 transition">${t('delete')}</button>
+    </td>
+  </tr>`).join('');
+}
+
+function showMemberModal() { document.getElementById('memberModal').classList.remove('hidden'); }
+function hideMemberModal() { document.getElementById('memberModal').classList.add('hidden'); document.getElementById('newMemberName').value = ''; }
+function hideTokenModal() { document.getElementById('tokenModal').classList.add('hidden'); }
+
+function copyNewToken() {
+  const inp = document.getElementById('newTokenDisplay');
+  navigator.clipboard.writeText(inp.value);
+}
+
+async function addMember() {
+  const name = document.getElementById('newMemberName').value.trim();
+  if (!name) return;
+  const res = await api.addMember(name);
+  hideMemberModal();
+  document.getElementById('newTokenDisplay').value = res.token;
+  document.getElementById('tokenModal').classList.remove('hidden');
+  loadMembers();
+}
+
+async function delMember(id) {
+  if (confirm(t('confirmDeleteMember'))) {
+    await api.delMember(id);
+    loadMembers();
+  }
+}
+
 // ============ Init ============
 applyTheme();
 applyI18n();
-if (TOKEN) { api.stats().then(() => showApp()).catch(() => { TOKEN = ''; localStorage.removeItem('c7p_token'); }); }
+if (TOKEN) {
+  // Try admin endpoints first; if 401, try as legacy key
+  api.stats().then(() => showApp()).catch(() => {
+    // Maybe it's a legacy key — try validating via stats
+    TOKEN = '';
+    ROLE = '';
+    localStorage.removeItem('c7p_token');
+    localStorage.removeItem('c7p_role');
+  });
+}
 </script>
 </body>
 </html>

@@ -30,7 +30,7 @@ func (s *KeyService) Create(ctx context.Context, key, alias string) (*models.API
 	return &k, s.db.WithContext(ctx).Create(&k).Error
 }
 
-func (s *KeyService) Update(ctx context.Context, id uint, alias *string, isActive *bool) (*models.APIKey, error) {
+func (s *KeyService) Update(ctx context.Context, id uint, alias *string, isActive *bool, maxRequests *int64) (*models.APIKey, error) {
 	var k models.APIKey
 	if err := s.db.WithContext(ctx).First(&k, id).Error; err != nil {
 		return nil, err
@@ -44,6 +44,9 @@ func (s *KeyService) Update(ctx context.Context, id uint, alias *string, isActiv
 		} else {
 			k.IsActive = *isActive
 		}
+	}
+	if maxRequests != nil {
+		k.MaxRequests = *maxRequests
 	}
 	return &k, s.db.WithContext(ctx).Save(&k).Error
 }
@@ -59,10 +62,11 @@ func (s *KeyService) GetRaw(ctx context.Context, id uint) (string, error) {
 }
 
 type KeyCandidate struct {
-	ID        uint
-	Key       string
-	Alias     string
-	UsedCount int64
+	ID          uint
+	Key         string
+	Alias       string
+	UsedCount   int64
+	MaxRequests int64
 }
 
 func (s *KeyService) Candidates(ctx context.Context) ([]KeyCandidate, error) {
@@ -78,7 +82,10 @@ func (s *KeyService) Candidates(ctx context.Context) ([]KeyCandidate, error) {
 		if k.CooldownAt != nil && k.CooldownAt.After(now) {
 			continue
 		}
-		out = append(out, KeyCandidate{ID: k.ID, Key: k.Key, Alias: k.Alias, UsedCount: k.UsedCount})
+		if k.MaxRequests > 0 && k.UsedCount >= k.MaxRequests {
+			continue
+		}
+		out = append(out, KeyCandidate{ID: k.ID, Key: k.Key, Alias: k.Alias, UsedCount: k.UsedCount, MaxRequests: k.MaxRequests})
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].UsedCount != out[j].UsedCount {

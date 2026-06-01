@@ -35,7 +35,7 @@ type ProxyResponse struct {
 	Body       []byte
 }
 
-func (p *ProxyService) Do(ctx context.Context, method, path, rawQuery string, headers http.Header, body []byte, clientIP string) (ProxyResponse, error) {
+func (p *ProxyService) Do(ctx context.Context, method, path, rawQuery string, headers http.Header, body []byte, clientIP string, memberID uint, memberName string) (ProxyResponse, error) {
 	reqID := uuid.NewString()[:8]
 	candidates, err := p.keys.Candidates(ctx)
 	if err != nil {
@@ -64,12 +64,12 @@ func (p *ProxyService) Do(ctx context.Context, method, path, rawQuery string, he
 			continue
 		}
 		p.keys.MarkUsed(ctx, c.ID)
-		p.logReq(ctx, reqID, c.ID, c.Alias, method, path, status, latency, clientIP)
+		p.logReq(ctx, reqID, c.ID, c.Alias, method, path, status, latency, clientIP, memberID, memberName)
 		return ProxyResponse{StatusCode: status, Body: respBody}, nil
 	}
 
 	if lastResp.StatusCode == 429 {
-		p.logReq(ctx, reqID, 0, "", method, path, 429, 0, clientIP)
+		p.logReq(ctx, reqID, 0, "", method, path, 429, 0, clientIP, memberID, memberName)
 		return lastResp, nil
 	}
 	return ProxyResponse{StatusCode: 503, Body: []byte(`{"error":"all_keys_failed"}`)}, nil
@@ -106,12 +106,13 @@ func (p *ProxyService) tryKey(ctx context.Context, apiKey, method, path, rawQuer
 	return b, resp.StatusCode, latency, err
 }
 
-func (p *ProxyService) logReq(ctx context.Context, reqID string, keyID uint, alias, method, endpoint string, status int, latency int64, clientIP string) {
+func (p *ProxyService) logReq(ctx context.Context, reqID string, keyID uint, alias, method, endpoint string, status int, latency int64, clientIP string, memberID uint, memberName string) {
 	if p.logs == nil {
 		return
 	}
 	p.logs.Create(ctx, &models.RequestLog{
 		RequestID: reqID, KeyID: keyID, KeyAlias: alias,
+		MemberID: memberID, MemberName: memberName,
 		Method: method, Endpoint: endpoint, StatusCode: status, LatencyMs: latency,
 		ClientIP: clientIP, CreatedAt: time.Now(),
 	})

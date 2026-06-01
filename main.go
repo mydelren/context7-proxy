@@ -25,11 +25,17 @@ func main() {
 	}
 	log.Println("Database initialized")
 
+	// Load legacy master key for backward compatibility
 	mk := services.NewMasterKeyService(gormDB, cfg.MasterKey)
 	if err := mk.LoadOrCreate(context.Background()); err != nil {
 		log.Fatalf("Master key init failed: %v", err)
 	}
-	log.Printf("Master key: %s", mk.Get())
+
+	// Auth service with legacy key fallback
+	auth := services.NewAuthService(gormDB, mk.Get())
+	if err := auth.InitAdmin(context.Background()); err != nil {
+		log.Fatalf("Admin init failed: %v", err)
+	}
 
 	keys := services.NewKeyService(gormDB, cfg.CooldownSeconds)
 	logs := services.NewLogService(gormDB)
@@ -37,12 +43,12 @@ func main() {
 	proxy := services.NewProxyService(cfg.Context7BaseURL, cfg.UpstreamTimeout, keys, logs)
 
 	handler := httpserver.NewRouter(httpserver.Deps{
-		MasterKey: mk,
-		Keys:      keys,
-		Logs:      logs,
-		Stats:     stats,
-		Proxy:     proxy,
-		StaticFS:  staticFS,
+		Auth:     auth,
+		Keys:     keys,
+		Logs:     logs,
+		Stats:    stats,
+		Proxy:    proxy,
+		StaticFS: staticFS,
 	})
 
 	httpserver.Run(cfg.ListenAddr, handler)
