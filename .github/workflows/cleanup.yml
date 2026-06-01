@@ -1,0 +1,43 @@
+name: Cleanup Old Images
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'  # Weekly on Sunday at 3am UTC
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+
+    steps:
+      - name: Delete old sha-tagged images (keep last 7 days)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const daysToKeep = 7;
+            const cutoff = new Date(Date.now() - daysToKeep * 24 * 60 * 60 * 1000);
+
+            const pkg = await github.rest.packages.getAllPackageVersionsForPackageOwnedByOrg({
+              package_type: 'container',
+              package_name: 'context7-proxy',
+              org: context.repo.owner,
+              per_page: 100,
+            });
+
+            for (const version of pkg.data) {
+              // Keep 'latest' tag
+              if (version.metadata?.container?.tags?.includes('latest')) continue;
+
+              const created = new Date(version.created_at);
+              if (created < cutoff) {
+                console.log(`Deleting ${version.name} (created ${created.toISOString()})`);
+                await github.rest.packages.deletePackageVersionForOrg({
+                  package_type: 'container',
+                  package_name: 'context7-proxy',
+                  org: context.repo.owner,
+                  package_version_id: version.id,
+                });
+              }
+            }
