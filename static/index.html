@@ -115,6 +115,10 @@ canvas { max-height: 220px; }
 /* Stat card label (dashboard) */
 .dark .stat-label { color: #9ca3af; }
 
+/* Dashboard range button active state */
+.range-btn.active { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
+.dark .range-btn.active { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
+
 /* Sidebar collapse */
 .sidebar-collapsed { --sidebar-w: 60px !important; }
 .sidebar-collapsed .nav-label { display: none; }
@@ -217,7 +221,14 @@ canvas { max-height: 220px; }
       <section id="tab-dashboard">
         <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6" id="statCards"></div>
         <div class="card border rounded-xl p-5">
-          <h3 class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-4" data-i18n="req24h">Requests (last 24h)</h3>
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xs font-semibold uppercase tracking-widest text-gray-400" data-i18n="reqHistory">Request History</h3>
+            <div class="flex gap-1" id="dashboardRange">
+              <button onclick="loadDashboard(24)" class="range-btn text-xs px-2.5 py-1 rounded-lg font-medium border border-gray-200 bg-gray-100 dk-btn transition active" data-i18n="last24h">24h</button>
+              <button onclick="loadDashboard(168)" class="range-btn text-xs px-2.5 py-1 rounded-lg font-medium border border-gray-200 bg-gray-100 dk-btn transition" data-i18n="last7d">7d</button>
+              <button onclick="loadDashboard(720)" class="range-btn text-xs px-2.5 py-1 rounded-lg font-medium border border-gray-200 bg-gray-100 dk-btn transition" data-i18n="last30d">30d</button>
+            </div>
+          </div>
           <canvas id="chart"></canvas>
         </div>
       </section>
@@ -407,6 +418,7 @@ const T = {
     copy: 'Copy', reset: 'Reset', mcpConfig: 'MCP Client Config',
     addApiKey: 'Add API Key', aliasOptional: 'Alias (optional)', cancel: 'Cancel', add: 'Add',
     req24h: 'Requests (last 24h)',
+    reqHistory: 'Request History', last24h: '24h', last7d: '7d', last30d: '30d', requests: 'Requests',
     totalKeys: 'Total Keys', activeKeys: 'Active Keys', coolingDown: 'Cooling Down',
     invalidKeys: 'Invalid Keys', requests24h: 'Requests (24h)',
     invalid: 'Invalid', cooling: 'Cooling', active: 'Active', disabled: 'Disabled',
@@ -440,6 +452,7 @@ const T = {
     copy: '复制', reset: '重置', mcpConfig: 'MCP 客户端配置',
     addApiKey: '添加 API 密钥', aliasOptional: '别名（可选）', cancel: '取消', add: '添加',
     req24h: '请求量（最近 24 小时）',
+    reqHistory: '请求历史', last24h: '24小时', last7d: '7天', last30d: '30天', requests: '请求量',
     totalKeys: '密钥总数', activeKeys: '活跃密钥', coolingDown: '冷却中',
     invalidKeys: '失效密钥', requests24h: '请求量 (24h)',
     invalid: '失效', cooling: '冷却', active: '活跃', disabled: '禁用',
@@ -531,7 +544,7 @@ function toggleKeyVisibility() {
 const api = {
   login: (username, password) => fetch('/manage/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) }).then(r => r.ok ? r.json() : Promise.reject()),
   stats: () => fetch('/manage/stats', { headers: auth() }).then(r => r.json()),
-  timeseries: () => fetch('/manage/stats/timeseries', { headers: auth() }).then(r => r.json()),
+  timeseries: (hours) => fetch('/manage/stats/timeseries?hours=' + (hours || 24), { headers: auth() }).then(r => r.json()),
   keys: () => fetch('/manage/keys', { headers: auth() }).then(r => r.json()),
   addKey: (alias, key) => fetch('/manage/keys', { method: 'POST', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ alias, key }) }).then(r => r.json()),
   delKey: id => fetch('/manage/keys/' + id, { method: 'DELETE', headers: auth() }).then(r => r.json()),
@@ -630,8 +643,16 @@ function switchTab(name) {
 }
 
 // ============ Dashboard ============
-async function loadDashboard() {
-  const [s, ts] = await Promise.all([api.stats(), api.timeseries()]);
+let dashboardHours = 24;
+
+async function loadDashboard(hours) {
+  if (hours) dashboardHours = hours;
+  // Update active range button
+  document.querySelectorAll('.range-btn').forEach(btn => btn.classList.remove('active'));
+  const rangeMap = {24: 0, 168: 1, 720: 2};
+  const btns = document.querySelectorAll('.range-btn');
+  if (btns[rangeMap[dashboardHours]]) btns[rangeMap[dashboardHours]].classList.add('active');
+  const [s, ts] = await Promise.all([api.stats(), api.timeseries(dashboardHours)]);
   const cards = [
     { label: 'totalKeys', value: s.total_keys, icon: 'M15 7a4 4 0 0 0-4.5 3.97', color: 'from-indigo-500 to-indigo-600' },
     { label: 'activeKeys', value: s.active_keys, icon: 'M9 12l2 2 4-4', color: 'from-emerald-500 to-emerald-600' },
@@ -656,7 +677,7 @@ async function loadDashboard() {
   if (chart) chart.destroy();
   chart = new Chart(document.getElementById('chart'), {
     type: 'bar',
-    data: { labels: ts.map(t => t.hour), datasets: [{ label: t('requests24h'), data: ts.map(t => t.count), backgroundColor: 'rgba(99,102,241,0.7)', borderRadius: 6, borderSkipped: false }] },
+    data: { labels: ts.map(p => p.label), datasets: [{ label: t('requests'), data: ts.map(p => p.count), backgroundColor: 'rgba(99,102,241,0.7)', borderRadius: 6, borderSkipped: false }] },
     options: {
       responsive: true,
       plugins: { legend: { display: false } },

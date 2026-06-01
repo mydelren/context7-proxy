@@ -63,6 +63,8 @@ services:
       - "8070:8070"
     volumes:
       - ./data:/app/data
+    environment:
+      - TZ=Asia/Shanghai
     restart: unless-stopped
 ```
 
@@ -77,6 +79,7 @@ docker run -d \
   --name context7-proxy \
   -p 8070:8070 \
   -v $(pwd)/data:/app/data \
+  -e TZ=Asia/Shanghai \
   ghcr.io/mydelren/context7-proxy:latest
 ```
 

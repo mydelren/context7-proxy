@@ -59,6 +59,17 @@ func main() {
 
 	logs := services.NewLogService(gormDB)
 	stats := services.NewStatsService(gormDB)
+
+	// Daily log cleanup — delete logs older than 30 days
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		// Run once on startup, then every 24h
+		logs.Cleanup(context.Background(), 30)
+		for range ticker.C {
+			logs.Cleanup(context.Background(), 30)
+		}
+	}()
 	proxy := services.NewProxyService(cfg.Context7BaseURL, cfg.UpstreamTimeout, keys, logs)
 
 	handler := httpserver.NewRouter(httpserver.Deps{

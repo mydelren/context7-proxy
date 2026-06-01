@@ -3,6 +3,9 @@ package services
 
 import (
 	"context"
+	"log"
+	"time"
+
 	"github.com/mydelren/context7-proxy/internal/models"
 	"gorm.io/gorm"
 )
@@ -42,4 +45,15 @@ func (s *LogService) List(ctx context.Context, f LogFilter) ([]models.RequestLog
 
 func (s *LogService) Clear(ctx context.Context) error {
 	return s.db.WithContext(ctx).Where("1 = 1").Delete(&models.RequestLog{}).Error
+}
+
+// Cleanup deletes logs older than the given number of days.
+func (s *LogService) Cleanup(ctx context.Context, days int) {
+	cutoff := time.Now().Add(-time.Duration(days) * 24 * time.Hour)
+	result := s.db.WithContext(ctx).Where("created_at < ?", cutoff).Delete(&models.RequestLog{})
+	if result.Error != nil {
+		log.Printf("Log cleanup failed: %v", result.Error)
+	} else if result.RowsAffected > 0 {
+		log.Printf("Log cleanup: deleted %d entries older than %d days", result.RowsAffected, days)
+	}
 }

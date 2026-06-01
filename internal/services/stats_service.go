@@ -3,6 +3,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/mydelren/context7-proxy/internal/models"
@@ -35,16 +36,22 @@ func (s *StatsService) Get(ctx context.Context, keyStats func(context.Context) (
 }
 
 type TimeSeriesPoint struct {
-	Hour  string `json:"hour"`
+	Label string `json:"label"`
 	Count int64  `json:"count"`
 }
 
 func (s *StatsService) TimeSeries(ctx context.Context, hours int) ([]TimeSeriesPoint, error) {
 	since := time.Now().Add(-time.Duration(hours) * time.Hour)
-	rows, err := s.db.WithContext(ctx).Raw(`
-		SELECT strftime('%Y-%m-%d %H:00', created_at, 'localtime') as hour, count(*) as count
-		FROM request_logs WHERE created_at >= ? GROUP BY hour ORDER BY hour
-	`, since).Rows()
+	// Group by day when range > 48h, otherwise by hour
+	groupFmt := "%%Y-%%m-%%d %%H:00"
+	if hours > 48 {
+		groupFmt = "%%Y-%%m-%%d"
+	}
+	sql := fmt.Sprintf(`
+		SELECT strftime('%s', created_at, 'localtime') as label, count(*) as count
+		FROM request_logs WHERE created_at >= ? GROUP BY label ORDER BY label
+	`, groupFmt)
+	rows, err := s.db.WithContext(ctx).Raw(sql, since).Rows()
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +59,7 @@ func (s *StatsService) TimeSeries(ctx context.Context, hours int) ([]TimeSeriesP
 	var pts []TimeSeriesPoint
 	for rows.Next() {
 		var p TimeSeriesPoint
-		rows.Scan(&p.Hour, &p.Count)
+		rows.Scan(&p.Label, &p.Count)
 		pts = append(pts, p)
 	}
 	return pts, nil
