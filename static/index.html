@@ -1,4 +1,276 @@
 <!DOCTYPE html>
-<html><head><title>Context7 Proxy</title></head>
-<body><h1>Context7 API Key Proxy</h1><p>Service is running.</p></body>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Context7 Proxy</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>tailwindcss.config={darkMode:'class'}</script>
+<style>body{font-family:system-ui,-apple-system,sans-serif}</style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen">
+
+<!-- Auth Screen -->
+<div id="authScreen" class="flex items-center justify-center min-h-screen">
+  <div class="bg-gray-900 p-8 rounded-xl shadow-lg w-full max-w-sm">
+    <h1 class="text-xl font-bold mb-4 text-center">Context7 Proxy</h1>
+    <input id="masterKeyInput" type="password" placeholder="Master Key"
+      class="w-full px-3 py-2 bg-gray-800 rounded border border-gray-700 focus:outline-none focus:border-blue-500 mb-3">
+    <button onclick="login()" class="w-full py-2 bg-blue-600 hover:bg-blue-700 rounded font-medium">Login</button>
+    <p id="authError" class="text-red-400 text-sm mt-2 hidden"></p>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app" class="hidden">
+  <!-- Nav -->
+  <nav class="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between">
+    <div class="flex gap-4">
+      <button onclick="switchTab('dashboard')" class="nav-btn font-medium" data-tab="dashboard">Dashboard</button>
+      <button onclick="switchTab('keys')" class="nav-btn font-medium" data-tab="keys">Keys</button>
+      <button onclick="switchTab('logs')" class="nav-btn font-medium" data-tab="logs">Logs</button>
+      <button onclick="switchTab('settings')" class="nav-btn font-medium" data-tab="settings">Settings</button>
+    </div>
+    <button onclick="logout()" class="text-sm text-gray-400 hover:text-gray-200">Logout</button>
+  </nav>
+
+  <main class="max-w-6xl mx-auto p-4">
+
+    <!-- Dashboard -->
+    <section id="tab-dashboard">
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6" id="statCards"></div>
+      <div class="bg-gray-900 rounded-xl p-4">
+        <h3 class="text-sm font-medium text-gray-400 mb-3">Requests (last 24h)</h3>
+        <canvas id="chart" height="80"></canvas>
+      </div>
+    </section>
+
+    <!-- Keys -->
+    <section id="tab-keys" class="hidden">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-semibold">API Keys</h2>
+        <button onclick="showKeyModal()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-sm">Add Key</button>
+      </div>
+      <div class="overflow-x-auto"><table class="w-full text-sm" id="keysTable">
+        <thead><tr class="text-gray-400 border-b border-gray-800">
+          <th class="text-left p-2">Alias</th><th class="text-left p-2">Status</th>
+          <th class="text-right p-2">Used</th><th class="text-left p-2">Last Used</th>
+          <th class="text-right p-2">Actions</th>
+        </tr></thead><tbody></tbody>
+      </table></div>
+    </section>
+
+    <!-- Logs -->
+    <section id="tab-logs" class="hidden">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-semibold">Request Logs</h2>
+        <div class="flex gap-2">
+          <select id="logFilter" onchange="loadLogs(1)" class="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm">
+            <option value="">All</option><option value="200">200</option><option value="429">429</option>
+            <option value="401">401</option><option value="500">500</option>
+          </select>
+          <button onclick="clearLogs()" class="px-3 py-1.5 bg-red-600/80 hover:bg-red-700 rounded text-sm">Clear</button>
+        </div>
+      </div>
+      <div class="overflow-x-auto"><table class="w-full text-sm" id="logsTable">
+        <thead><tr class="text-gray-400 border-b border-gray-800">
+          <th class="text-left p-2">Time</th><th class="text-left p-2">Method</th>
+          <th class="text-left p-2">Path</th><th class="text-right p-2">Status</th>
+          <th class="text-right p-2">Latency</th>
+        </tr></thead><tbody></tbody>
+      </table></div>
+      <div class="flex justify-center gap-2 mt-4" id="logPagination"></div>
+    </section>
+
+    <!-- Settings -->
+    <section id="tab-settings" class="hidden">
+      <div class="bg-gray-900 rounded-xl p-6 max-w-xl">
+        <h2 class="text-lg font-semibold mb-4">Settings</h2>
+        <div class="mb-6">
+          <label class="text-sm text-gray-400 block mb-1">Master Key</label>
+          <div class="flex gap-2">
+            <input id="masterKeyDisplay" readonly class="flex-1 px-3 py-2 bg-gray-800 rounded border border-gray-700 font-mono text-sm">
+            <button onclick="copyMasterKey()" class="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm">Copy</button>
+            <button onclick="resetMasterKey()" class="px-3 py-2 bg-red-600/80 hover:bg-red-700 rounded text-sm">Reset</button>
+          </div>
+        </div>
+        <div>
+          <label class="text-sm text-gray-400 block mb-1">MCP Client Config</label>
+          <pre class="bg-gray-800 rounded p-3 text-xs overflow-x-auto" id="mcpConfig"></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Add Key Modal -->
+<div id="keyModal" class="fixed inset-0 bg-black/60 flex items-center justify-center hidden z-50">
+  <div class="bg-gray-900 p-6 rounded-xl shadow-lg w-full max-w-md">
+    <h3 class="font-semibold mb-3">Add API Key</h3>
+    <input id="newKeyAlias" placeholder="Alias (optional)" class="w-full px-3 py-2 bg-gray-800 rounded border border-gray-700 mb-2">
+    <input id="newKeyValue" placeholder="ctx7sk_..." class="w-full px-3 py-2 bg-gray-800 rounded border border-gray-700 mb-3">
+    <div class="flex justify-end gap-2">
+      <button onclick="hideKeyModal()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm">Cancel</button>
+      <button onclick="addKey()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm">Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let TOKEN = localStorage.getItem('c7p_token') || '';
+let chart = null;
+
+// API helpers
+const api = {
+  stats: () => fetch('/manage/stats', { headers: auth() }).then(r => r.json()),
+  timeseries: () => fetch('/manage/stats/timeseries', { headers: auth() }).then(r => r.json()),
+  keys: () => fetch('/manage/keys', { headers: auth() }).then(r => r.json()),
+  addKey: (alias, key) => fetch('/manage/keys', { method: 'POST', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ alias, key }) }).then(r => r.json()),
+  delKey: id => fetch('/manage/keys/' + id, { method: 'DELETE', headers: auth() }).then(r => r.json()),
+  toggleKey: (id, active) => fetch('/manage/keys/' + id, { method: 'PUT', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: active }) }).then(r => r.json()),
+  logs: (p, f) => { const off = (p - 1) * 50; return fetch('/manage/logs?limit=50&offset=' + off + (f ? '&status_code=' + f : ''), { headers: auth() }).then(r => r.json()); },
+  clearLogs: () => fetch('/manage/logs', { method: 'DELETE', headers: auth() }).then(r => r.json()),
+  resetKey: () => fetch('/manage/settings/master-key/reset', { method: 'POST', headers: auth() }).then(r => r.json()),
+};
+
+function auth() { return { 'Authorization': 'Bearer ' + TOKEN }; }
+
+function fmtTime(ts) { return ts ? new Date(ts).toLocaleString() : '-'; }
+function fmtMs(ms) { return ms >= 1000 ? (ms / 1000).toFixed(1) + 's' : ms + 'ms'; }
+
+// Auth
+async function login() {
+  const key = document.getElementById('masterKeyInput').value.trim();
+  if (!key) return;
+  TOKEN = key;
+  try {
+    await api.stats();
+    localStorage.setItem('c7p_token', key);
+    showApp();
+  } catch {
+    document.getElementById('authError').textContent = 'Invalid master key';
+    document.getElementById('authError').classList.remove('hidden');
+    TOKEN = '';
+  }
+}
+
+function logout() {
+  TOKEN = '';
+  localStorage.removeItem('c7p_token');
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('authScreen').classList.remove('hidden');
+}
+
+async function showApp() {
+  document.getElementById('authScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('masterKeyDisplay').value = TOKEN;
+  const host = location.origin;
+  document.getElementById('mcpConfig').textContent = JSON.stringify({
+    mcpServers: { context7: { command: 'npx', args: ['-y', '@upstash/context7-mcp@latest'],
+      env: { CONTEXT7_API_URL: host } } }
+  }, null, 2);
+  switchTab('dashboard');
+}
+
+// Tabs
+function switchTab(name) {
+  ['dashboard', 'keys', 'logs', 'settings'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
+    document.querySelectorAll('[data-tab="' + t + '"]').forEach(b =>
+      b.classList.toggle('text-blue-400', t === name));
+  });
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'keys') loadKeys();
+  if (name === 'logs') loadLogs(1);
+}
+
+// Dashboard
+async function loadDashboard() {
+  const [s, ts] = await Promise.all([api.stats(), api.timeseries()]);
+  const cards = [
+    { label: 'Total Keys', value: s.total_keys, color: 'blue' },
+    { label: 'Active Keys', value: s.active_keys, color: 'green' },
+    { label: 'Cooling Down', value: s.cooling_keys, color: 'yellow' },
+    { label: 'Invalid Keys', value: s.invalid_keys, color: 'red' },
+    { label: 'Requests (24h)', value: s.today_requests, color: 'purple' },
+  ];
+  document.getElementById('statCards').innerHTML = cards.map(c =>
+    `<div class="bg-gray-900 rounded-xl p-4"><div class="text-sm text-gray-400">${c.label}</div><div class="text-2xl font-bold text-${c.color}-400 mt-1">${c.value}</div></div>`
+  ).join('');
+  const labels = ts.map(t => t.hour);
+  const data = ts.map(t => t.count);
+  if (chart) chart.destroy();
+  chart = new Chart(document.getElementById('chart'), {
+    type: 'bar', data: { labels, datasets: [{ label: 'Requests', data, backgroundColor: '#3b82f6', borderRadius: 4 }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#9ca3af' } }, y: { ticks: { color: '#9ca3af' }, beginAtZero: true } } }
+  });
+}
+
+// Keys
+async function loadKeys() {
+  const keys = await api.keys();
+  const tbody = document.querySelector('#keysTable tbody');
+  tbody.innerHTML = keys.map(k => `<tr class="border-b border-gray-800 hover:bg-gray-900/50">
+    <td class="p-2">${k.alias || '-'}</td>
+    <td class="p-2"><span class="px-2 py-0.5 rounded text-xs ${k.is_invalid ? 'bg-red-900 text-red-300' : k.is_active ? (k.cooldown_at ? 'bg-yellow-900 text-yellow-300' : 'bg-green-900 text-green-300') : 'bg-gray-700 text-gray-400'}">${k.is_invalid ? 'Invalid' : k.is_active ? (k.cooldown_at ? 'Cooling' : 'Active') : 'Disabled'}</span></td>
+    <td class="p-2 text-right">${k.used_count}</td><td class="p-2">${fmtTime(k.last_used_at)}</td>
+    <td class="p-2 text-right"><button onclick="toggleKey(${k.id},${!k.is_active})" class="text-xs px-2 py-1 rounded ${k.is_active ? 'bg-gray-700 hover:bg-gray-600' : 'bg-green-800 hover:bg-green-700'}">${k.is_active ? 'Disable' : 'Enable'}</button>
+    <button onclick="delKey(${k.id})" class="text-xs px-2 py-1 rounded bg-red-800 hover:bg-red-700 ml-1">Delete</button></td>
+  </tr>`).join('');
+}
+
+function showKeyModal() { document.getElementById('keyModal').classList.remove('hidden'); }
+function hideKeyModal() { document.getElementById('keyModal').classList.add('hidden'); document.getElementById('newKeyAlias').value = ''; document.getElementById('newKeyValue').value = ''; }
+
+async function addKey() {
+  const alias = document.getElementById('newKeyAlias').value.trim();
+  const key = document.getElementById('newKeyValue').value.trim();
+  if (!key) return;
+  await api.addKey(alias, key);
+  hideKeyModal();
+  loadKeys();
+}
+
+async function toggleKey(id, active) { await api.toggleKey(id, active); loadKeys(); }
+async function delKey(id) { if (confirm('Delete this key?')) { await api.delKey(id); loadKeys(); } }
+
+// Logs
+async function loadLogs(page) {
+  const filter = document.getElementById('logFilter').value;
+  const res = await api.logs(page, filter);
+  const tbody = document.querySelector('#logsTable tbody');
+  tbody.innerHTML = res.logs.map(l => `<tr class="border-b border-gray-800 hover:bg-gray-900/50">
+    <td class="p-2">${fmtTime(l.created_at)}</td><td class="p-2">${l.method}</td>
+    <td class="p-2 font-mono text-xs">${l.endpoint}</td>
+    <td class="p-2 text-right"><span class="${l.status_code >= 400 ? 'text-red-400' : 'text-green-400'}">${l.status_code}</span></td>
+    <td class="p-2 text-right">${fmtMs(l.latency_ms)}</td>
+  </tr>`).join('');
+  const totalPages = Math.ceil(res.total / 50);
+  let pg = '';
+  for (let i = 1; i <= totalPages; i++) {
+    pg += `<button onclick="loadLogs(${i})" class="px-3 py-1 rounded text-sm ${i === page ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}">${i}</button>`;
+  }
+  document.getElementById('logPagination').innerHTML = pg;
+}
+
+async function clearLogs() { if (confirm('Clear all logs?')) { await api.clearLogs(); loadLogs(1); } }
+
+// Settings
+async function resetMasterKey() {
+  if (!confirm('Reset master key? You will need the new key to log in.')) return;
+  const res = await api.resetKey();
+  TOKEN = res.master_key;
+  localStorage.setItem('c7p_token', TOKEN);
+  document.getElementById('masterKeyDisplay').value = TOKEN;
+  alert('New master key: ' + TOKEN + '\nSave it!');
+}
+
+function copyMasterKey() { navigator.clipboard.writeText(document.getElementById('masterKeyDisplay').value); }
+
+// Auto-login on load
+if (TOKEN) { api.stats().then(() => showApp()).catch(() => { TOKEN = ''; localStorage.removeItem('c7p_token'); }); }
+</script>
+</body>
 </html>
