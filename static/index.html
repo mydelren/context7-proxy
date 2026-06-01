@@ -72,6 +72,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; }
 /* Dark input helper — for elements styled via Tailwind but needing dark bg */
 .dark .dk-input { background: #1a1a2e !important; border-color: #3a3a50 !important; color: #e2e8f0 !important; }
 .dark .dk-btn { background: #1a1a2e !important; border-color: #3a3a50 !important; color: #e2e8f0 !important; }
+.dk-btn:hover { background: #e5e7eb !important; }
 .dark .dk-btn:hover { background: #2a2a3e !important; }
 
 /* Scrollbar */
@@ -306,6 +307,7 @@ const T = {
     newMasterKey: '新主密钥：', saveIt: '请妥善保存！',
     errInvalid: '主密钥无效', errNoKeys: '无可用密钥',
     disable: '禁用', enable: '启用', delete: '删除',
+    light: '浅色', dark: '深色',
   }
 };
 
@@ -328,6 +330,7 @@ function toggleLang() {
   lang = lang === 'en' ? 'zh' : 'en';
   localStorage.setItem('c7p_lang', lang);
   applyI18n();
+  applyTheme();
   const activeTab = document.querySelector('[data-tab].active')?.dataset.tab;
   if (activeTab === 'dashboard') loadDashboard();
   if (activeTab === 'keys') loadKeys();
@@ -343,7 +346,7 @@ function applyTheme() {
     html.classList.remove('dark');
     html.classList.add('light');
   }
-  document.getElementById('themeLabel').textContent = darkMode ? 'Light' : 'Dark';
+  document.getElementById('themeLabel').textContent = darkMode ? t('light') : t('dark');
   document.getElementById('themeIcon').innerHTML = darkMode
     ? '<circle cx="12" cy="12" r="5"/><path d="M12 1v2m0 18v2m-9-11h2m18 0h2m-3.3-6.7-1.4 1.4M6.7 17.3l-1.4 1.4m0-13.4 1.4 1.4m10.6 10.6 1.4 1.4"/>'
     : '<path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/>';
