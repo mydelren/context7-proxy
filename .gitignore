@@ -1,0 +1,5 @@
+/data/
+*.db
+*.db-journal
+context7-proxy
+.env
