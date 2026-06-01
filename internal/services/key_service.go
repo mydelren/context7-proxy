@@ -3,6 +3,7 @@ package services
 
 import (
 	"context"
+	"log"
 	"math/rand"
 	"sort"
 	"time"
@@ -61,15 +62,22 @@ func (s *KeyService) GetRaw(ctx context.Context, id uint) (string, error) {
 	return k.Key, err
 }
 
+func (s *KeyService) GetByID(ctx context.Context, id uint) (*models.APIKey, error) {
+	var k models.APIKey
+	err := s.db.WithContext(ctx).First(&k, id).Error
+	return &k, err
+}
+
 type KeyCandidate struct {
 	ID          uint
 	Key         string
 	Alias       string
 	UsedCount   int64
 	MaxRequests int64
+	LastUsedAt  *time.Time
 }
 
-func (s *KeyService) Candidates(ctx context.Context) ([]KeyCandidate, error) {
+func (s *KeyService) Candidates(ctx context.Context, strategy string) ([]KeyCandidate, error) {
 	var keys []models.APIKey
 	now := time.Now()
 	if err := s.db.WithContext(ctx).
@@ -85,14 +93,35 @@ func (s *KeyService) Candidates(ctx context.Context) ([]KeyCandidate, error) {
 		if k.MaxRequests > 0 && k.UsedCount >= k.MaxRequests {
 			continue
 		}
-		out = append(out, KeyCandidate{ID: k.ID, Key: k.Key, Alias: k.Alias, UsedCount: k.UsedCount, MaxRequests: k.MaxRequests})
+		out = append(out, KeyCandidate{ID: k.ID, Key: k.Key, Alias: k.Alias, UsedCount: k.UsedCount, MaxRequests: k.MaxRequests, LastUsedAt: k.LastUsedAt})
 	}
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].UsedCount != out[j].UsedCount {
-			return out[i].UsedCount < out[j].UsedCount
-		}
-		return rand.Intn(2) == 0
-	})
+	switch strategy {
+	case "round_robin":
+		// Sort by last_used_at ascending (NULL first) — use the key that was used longest ago
+		sort.Slice(out, func(i, j int) bool {
+			li := out[i].LastUsedAt
+			lj := out[j].LastUsedAt
+			if li == nil && lj == nil {
+				return out[i].ID < out[j].ID
+			}
+			if li == nil {
+				return true
+			}
+			if lj == nil {
+				return false
+			}
+			return li.Before(*lj)
+		})
+	case "random":
+		rand.Shuffle(len(out), func(i, j int) { out[i], out[j] = out[j], out[i] })
+	default: // "least_used"
+		sort.Slice(out, func(i, j int) bool {
+			if out[i].UsedCount != out[j].UsedCount {
+				return out[i].UsedCount < out[j].UsedCount
+			}
+			return rand.Intn(2) == 0
+		})
+	}
 	return out, nil
 }
 
@@ -115,6 +144,32 @@ func (s *KeyService) MarkInvalid(ctx context.Context, id uint) {
 func (s *KeyService) DeleteInvalid(ctx context.Context) (int64, error) {
 	r := s.db.WithContext(ctx).Where("is_invalid = ?", true).Delete(&models.APIKey{})
 	return r.RowsAffected, r.Error
+}
+
+func (s *KeyService) ResetMonthlyUsage(ctx context.Context) {
+	if err := s.db.WithContext(ctx).Model(&models.APIKey{}).Where("used_count > 0").Update("used_count", 0).Error; err != nil {
+		log.Printf("Monthly used_count reset failed: %v", err)
+	} else {
+		log.Println("Monthly used_count reset completed")
+	}
+}
+
+func (s *KeyService) GetStrategy(ctx context.Context) string {
+	var setting models.Setting
+	if err := s.db.WithContext(ctx).Where("key = ?", "strategy").First(&setting).Error; err != nil {
+		return "least_used"
+	}
+	if setting.Value == "" {
+		return "least_used"
+	}
+	return setting.Value
+}
+
+func (s *KeyService) SetStrategy(ctx context.Context, strategy string) error {
+	if strategy != "least_used" && strategy != "round_robin" && strategy != "random" {
+		strategy = "least_used"
+	}
+	return s.db.WithContext(ctx).Save(&models.Setting{Key: "strategy", Value: strategy}).Error
 }
 
 func (s *KeyService) Stats(ctx context.Context) (total, active, cooling, invalid int, err error) {

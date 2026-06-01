@@ -72,27 +72,27 @@ func (a *AuthService) Login(username, password string) (string, error) {
 	return token, nil
 }
 
-func (a *AuthService) Validate(token string) (role string, memberID uint, memberName string) {
+func (a *AuthService) Validate(token string) (role string, memberID uint, memberName string, apiKeyID *uint) {
 	// 1) admin in-memory token
 	a.mu.RLock()
 	created, ok := a.adminTokens[token]
 	a.mu.RUnlock()
 	if ok && time.Since(created) <= tokenTTL {
-		return "admin", 0, ""
+		return "admin", 0, "", nil
 	}
 
 	// 2) member DB token
 	var m models.Member
 	if err := a.db.Where("token = ? AND is_active = ?", token, true).First(&m).Error; err == nil {
-		return "member", m.ID, m.Name
+		return "member", m.ID, m.Name, m.APIKeyID
 	}
 
 	// 3) legacy MasterKey
 	if a.legacyKey != "" && token == a.legacyKey {
-		return "admin", 0, ""
+		return "admin", 0, "", nil
 	}
 
-	return "", 0, ""
+	return "", 0, "", nil
 }
 
 func (a *AuthService) CreateMember(ctx context.Context, name string) (*models.Member, error) {
@@ -132,7 +132,33 @@ func (a *AuthService) DeleteMember(ctx context.Context, id uint) error {
 	return r.Error
 }
 
+func (a *AuthService) UpdateMemberKey(ctx context.Context, id uint, apiKeyID *uint) error {
+	var m models.Member
+	if err := a.db.WithContext(ctx).First(&m, id).Error; err != nil {
+		return fmt.Errorf("member not found")
+	}
+	return a.db.WithContext(ctx).Model(&m).Updates(map[string]interface{}{"api_key_id": apiKeyID}).Error
+}
+
 func (a *AuthService) LegacyKey() string { return a.legacyKey }
+
+func (a *AuthService) ChangePassword(ctx context.Context, username, oldPassword, newPassword string) error {
+	var admin models.Admin
+	if err := a.db.WithContext(ctx).Where("username = ?", username).First(&admin).Error; err != nil {
+		return fmt.Errorf("user not found")
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(admin.PasswordHash), []byte(oldPassword)); err != nil {
+		return fmt.Errorf("old password is incorrect")
+	}
+	if len(newPassword) < 6 {
+		return fmt.Errorf("new password must be at least 6 characters")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	return a.db.WithContext(ctx).Model(&admin).Update("password_hash", string(hash)).Error
+}
 
 func (a *AuthService) InitAdmin(ctx context.Context) error {
 	var count int64

@@ -5,6 +5,7 @@ import (
 	"context"
 	"embed"
 	"log"
+	"time"
 
 	"github.com/mydelren/context7-proxy/internal/config"
 	"github.com/mydelren/context7-proxy/internal/db"
@@ -38,6 +39,24 @@ func main() {
 	}
 
 	keys := services.NewKeyService(gormDB, cfg.CooldownSeconds)
+
+	// Monthly used_count reset — check daily, reset on the 1st of each month (once)
+	go func() {
+		var lastResetMonth string
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			now := time.Now()
+			if now.Day() == 1 {
+				month := now.Format("2006-01")
+				if month != lastResetMonth {
+					keys.ResetMonthlyUsage(context.Background())
+					lastResetMonth = month
+				}
+			}
+		}
+	}()
+
 	logs := services.NewLogService(gormDB)
 	stats := services.NewStatsService(gormDB)
 	proxy := services.NewProxyService(cfg.Context7BaseURL, cfg.UpstreamTimeout, keys, logs)

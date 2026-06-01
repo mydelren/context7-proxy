@@ -16,6 +16,7 @@ type Member struct {
 	Name        string    `gorm:"not null" json:"name"`
 	Token       string    `gorm:"uniqueIndex;not null" json:"-"`
 	TokenSuffix string    `gorm:"-" json:"token_suffix"`
+	APIKeyID    *uint     `gorm:"index" json:"api_key_id"`
 	IsActive    bool      `gorm:"not null;default:true" json:"is_active"`
 	CreatedAt   time.Time `json:"created_at"`
 }
@@ -28,7 +29,7 @@ type APIKey struct {
 	IsInvalid  bool       `gorm:"not null;default:false" json:"is_invalid"`
 	CooldownAt *time.Time `json:"cooldown_at"`
 	UsedCount   int64      `gorm:"not null;default:0" json:"used_count"`
-	MaxRequests int64      `gorm:"not null;default:0" json:"max_requests"`
+	MaxRequests int64      `gorm:"not null;default:1000" json:"max_requests"`
 	LastUsedAt *time.Time `json:"last_used_at"`
 	CreatedAt  time.Time  `json:"created_at"`
 	UpdatedAt  time.Time  `json:"updated_at"`
@@ -52,4 +53,9 @@ type RequestLog struct {
 type MasterKey struct {
 	ID  uint   `gorm:"primaryKey"`
 	Key string `gorm:"uniqueIndex;not null"`
+}
+
+type Setting struct {
+	Key   string `gorm:"primaryKey" json:"key"`
+	Value string `gorm:"not null;default:''" json:"value"`
 }

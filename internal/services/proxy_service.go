@@ -35,9 +35,16 @@ type ProxyResponse struct {
 	Body       []byte
 }
 
-func (p *ProxyService) Do(ctx context.Context, method, path, rawQuery string, headers http.Header, body []byte, clientIP string, memberID uint, memberName string) (ProxyResponse, error) {
+func (p *ProxyService) Do(ctx context.Context, method, path, rawQuery string, headers http.Header, body []byte, clientIP string, memberID uint, memberName string, assignedKeyID uint) (ProxyResponse, error) {
 	reqID := uuid.NewString()[:8]
-	candidates, err := p.keys.Candidates(ctx)
+
+	// If member has an assigned key, use only that key
+	if assignedKeyID > 0 {
+		return p.doWithAssignedKey(ctx, reqID, assignedKeyID, method, path, rawQuery, headers, body, clientIP, memberID, memberName)
+	}
+
+	strategy := p.keys.GetStrategy(ctx)
+	candidates, err := p.keys.Candidates(ctx, strategy)
 	if err != nil {
 		return ProxyResponse{}, err
 	}
@@ -75,6 +82,40 @@ func (p *ProxyService) Do(ctx context.Context, method, path, rawQuery string, he
 	return ProxyResponse{StatusCode: 503, Body: []byte(`{"error":"all_keys_failed"}`)}, nil
 }
 
+func (p *ProxyService) doWithAssignedKey(ctx context.Context, reqID string, keyID uint, method, path, rawQuery string, headers http.Header, body []byte, clientIP string, memberID uint, memberName string) (ProxyResponse, error) {
+	k, err := p.keys.GetByID(ctx, keyID)
+	if err != nil {
+		return ProxyResponse{StatusCode: 503, Body: []byte(`{"error":"assigned_key_not_found"}`)}, nil
+	}
+	if !k.IsActive || k.IsInvalid {
+		return ProxyResponse{StatusCode: 503, Body: []byte(`{"error":"assigned_key_unavailable"}`)}, nil
+	}
+	if k.CooldownAt != nil && k.CooldownAt.After(time.Now()) {
+		return ProxyResponse{StatusCode: 429, Body: []byte(`{"error":"assigned_key_cooling_down"}`)}, nil
+	}
+	if k.MaxRequests > 0 && k.UsedCount >= k.MaxRequests {
+		return ProxyResponse{StatusCode: 429, Body: []byte(`{"error":"assigned_key_limit_reached"}`)}, nil
+	}
+
+	respBody, status, latency, err := p.tryKey(ctx, k.Key, method, path, rawQuery, headers, body)
+	if err != nil {
+		log.Printf("[%s] assigned key %d (%s) error: %v", reqID, k.ID, k.Alias, err)
+		return ProxyResponse{StatusCode: 502, Body: []byte(`{"error":"assigned_key_request_failed"}`)}, nil
+	}
+	if status == 401 {
+		p.keys.MarkInvalid(ctx, k.ID)
+		return ProxyResponse{StatusCode: 503, Body: []byte(`{"error":"assigned_key_invalid"}`)}, nil
+	}
+	if status == 429 {
+		p.keys.MarkCooldown(ctx, k.ID)
+		p.logReq(ctx, reqID, k.ID, k.Alias, method, path, 429, latency, clientIP, memberID, memberName)
+		return ProxyResponse{StatusCode: 429, Body: respBody}, nil
+	}
+	p.keys.MarkUsed(ctx, k.ID)
+	p.logReq(ctx, reqID, k.ID, k.Alias, method, path, status, latency, clientIP, memberID, memberName)
+	return ProxyResponse{StatusCode: status, Body: respBody}, nil
+}
+
 func (p *ProxyService) tryKey(ctx context.Context, apiKey, method, path, rawQuery string, headers http.Header, body []byte) ([]byte, int, int64, error) {
 	u := p.baseURL + path
 	if rawQuery != "" {
@@ -89,6 +130,9 @@ func (p *ProxyService) tryKey(ctx context.Context, apiKey, method, path, rawQuer
 		return nil, 0, 0, err
 	}
 	for k, vs := range headers {
+		if shouldSkipForwardHeader(k) {
+			continue
+		}
 		for _, v := range vs {
 			req.Header.Add(k, v)
 		}
@@ -104,6 +148,15 @@ func (p *ProxyService) tryKey(ctx context.Context, apiKey, method, path, rawQuer
 	defer resp.Body.Close()
 	b, err := io.ReadAll(resp.Body)
 	return b, resp.StatusCode, latency, err
+}
+
+func shouldSkipForwardHeader(name string) bool {
+	switch strings.ToLower(name) {
+	case "accept-encoding", "authorization", "connection", "content-length", "host":
+		return true
+	default:
+		return false
+	}
 }
 
 func (p *ProxyService) logReq(ctx context.Context, reqID string, keyID uint, alias, method, endpoint string, status int, latency int64, clientIP string, memberID uint, memberName string) {

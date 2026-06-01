@@ -184,7 +184,17 @@ canvas { max-height: 220px; }
       <!-- Keys -->
       <section id="tab-keys" class="hidden">
         <div class="flex justify-between items-center mb-5">
-          <h2 class="text-lg font-bold" data-i18n="apiKeys">API Keys</h2>
+          <div class="flex items-center gap-3">
+            <h2 class="text-lg font-bold" data-i18n="apiKeys">API Keys</h2>
+            <div class="flex items-center gap-2 ml-2">
+              <label class="text-xs text-gray-400" data-i18n="strategy">Strategy</label>
+              <select id="strategySelect" onchange="changeStrategy()" class="rounded-lg px-3 py-1.5 text-xs font-medium border border-gray-200 dark:border-gray-600 bg-gray-100 dk-input">
+                <option value="least_used" data-i18n="leastUsed">Least Used</option>
+                <option value="round_robin" data-i18n="roundRobin">Round Robin</option>
+                <option value="random" data-i18n="randomOrder">Random</option>
+              </select>
+            </div>
+          </div>
           <button onclick="showKeyModal()" class="px-4 py-2 rounded-xl text-sm font-semibold text-white transition hover:brightness-110 active:scale-[0.97]"
             style="background: linear-gradient(135deg, #6366f1, #7c3aed);" data-i18n="addKey">Add Key</button>
         </div>
@@ -242,6 +252,7 @@ canvas { max-height: 220px; }
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400">ID</th>
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="name">Name</th>
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="memberToken">Token</th>
+              <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="assignedKey">Assigned Key</th>
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="status">Status</th>
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="createdAt">Created</th>
               <th class="text-right p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="actions">Actions</th>
@@ -274,6 +285,16 @@ canvas { max-height: 220px; }
             <label class="text-xs font-semibold uppercase tracking-widest text-gray-400 block mb-2" data-i18n="mcpConfig">MCP Client Config</label>
             <pre class="rounded-xl p-4 text-xs font-mono overflow-x-auto border border-gray-200 dark:border-gray-600 bg-gray-100 dk-input" id="mcpConfig"></pre>
           </div>
+        </div>
+        <div class="card border rounded-xl p-6 max-w-xl mt-4">
+          <h3 class="text-sm font-semibold mb-4" data-i18n="changePassword">Change Password</h3>
+          <input id="oldPassword" type="password" data-i18n-placeholder="oldPassword"
+            class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 mb-3 text-sm transition bg-gray-100 dk-input">
+          <input id="newPassword" type="password" data-i18n-placeholder="newPassword"
+            class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 mb-4 text-sm transition bg-gray-100 dk-input">
+          <button onclick="changePassword()" class="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition hover:brightness-110 active:scale-[0.97]"
+            style="background: linear-gradient(135deg, #6366f1, #7c3aed);" data-i18n="save">Save</button>
+          <p id="pwdMsg" class="text-sm mt-2 hidden"></p>
         </div>
       </section>
 
@@ -354,12 +375,17 @@ const T = {
     light: 'Light', dark: 'Dark',
     limit: 'Limit', unlimited: 'Unlimited', enterLimit: 'Max requests (0 = unlimited):',
     cooldown: 'Cooldown',
+    strategy: 'Strategy', leastUsed: 'Least Used', roundRobin: 'Round Robin', randomOrder: 'Random',
     member: 'Member',
     addMember: 'Add Member', name: 'Name', memberToken: 'Token', createdAt: 'Created',
     memberNamePlaceholder: 'Member name', memberCreated: 'Member Created',
     saveToken: "Save this token — it won't be shown again.", done: 'Done',
     confirmDeleteMember: 'Delete this member?', unknownMember: '-',
     compatMode: 'Legacy',
+    changePassword: 'Change Password', oldPassword: 'Old Password', newPassword: 'New Password',
+    save: 'Save', passwordChanged: 'Password changed successfully',
+    assignedKey: 'Assigned Key', unassigned: 'Unassigned', assignKey: 'Assign Key',
+    keyPrefix: 'Key #', errGeneric: 'Error',
   },
   zh: {
     dashboard: '仪表盘', keys: '密钥管理', logs: '请求日志', settings: '设置', members: '成员管理',
@@ -382,12 +408,17 @@ const T = {
     light: '浅色', dark: '深色',
     limit: '限额', unlimited: '无限', enterLimit: '最大请求次数（0 = 无限）：',
     cooldown: '冷却',
+    strategy: '策略', leastUsed: '最少使用', roundRobin: '轮询', randomOrder: '随机',
     member: '成员',
     addMember: '添加成员', name: '名称', memberToken: '令牌', createdAt: '创建时间',
     memberNamePlaceholder: '成员名称', memberCreated: '成员已创建',
     saveToken: '请保存此令牌 — 不会再次显示。', done: '完成',
     confirmDeleteMember: '确定删除此成员？', unknownMember: '-',
     compatMode: '兼容模式',
+    changePassword: '修改密码', oldPassword: '旧密码', newPassword: '新密码',
+    save: '保存', passwordChanged: '密码修改成功',
+    assignedKey: '指定密钥', unassigned: '未指定', assignKey: '指定密钥',
+    keyPrefix: '密钥 #', errGeneric: '发生错误',
   }
 };
 
@@ -465,12 +496,16 @@ const api = {
   toggleKey: (id, active) => fetch('/manage/keys/' + id, { method: 'PUT', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: active }) }).then(r => r.json()),
   setLimit: (id, max) => fetch('/manage/keys/' + id, { method: 'PUT', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ max_requests: max }) }).then(r => r.json()),
   cooldownKey: id => fetch('/manage/keys/' + id + '/cooldown', { method: 'POST', headers: auth() }).then(r => r.json()),
+  getStrategy: () => fetch('/manage/settings/strategy', { headers: auth() }).then(r => r.json()),
+  setStrategy: strategy => fetch('/manage/settings/strategy', { method: 'PUT', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ strategy }) }).then(r => r.json()),
   logs: (p, f) => { const off = (p - 1) * 50; return fetch('/manage/logs?limit=50&offset=' + off + (f ? '&status_code=' + f : ''), { headers: auth() }).then(r => r.json()); },
   clearLogs: () => fetch('/manage/logs', { method: 'DELETE', headers: auth() }).then(r => r.json()),
   masterKey: () => fetch('/manage/settings/master-key', { headers: auth() }).then(r => r.json()),
   members: () => fetch('/manage/members', { headers: auth() }).then(r => r.json()),
   addMember: name => fetch('/manage/members', { method: 'POST', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) }).then(r => r.json()),
   delMember: id => fetch('/manage/members/' + id, { method: 'DELETE', headers: auth() }).then(r => r.json()),
+  changePassword: (oldPw, newPw) => fetch('/manage/settings/change-password', { method: 'POST', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ old_password: oldPw, new_password: newPw }) }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e))),
+  updateMemberKey: (id, apiKeyId) => fetch('/manage/members/' + id, { method: 'PUT', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ api_key_id: apiKeyId }) }).then(r => r.json()),
 };
 
 function auth() { return { 'Authorization': 'Bearer ' + TOKEN }; }
@@ -572,7 +607,7 @@ async function loadDashboard() {
   if (chart) chart.destroy();
   chart = new Chart(document.getElementById('chart'), {
     type: 'bar',
-    data: { labels: ts.map(t => t.hour), datasets: [{ label: 'Requests', data: ts.map(t => t.count), backgroundColor: 'rgba(99,102,241,0.7)', borderRadius: 6, borderSkipped: false }] },
+    data: { labels: ts.map(t => t.hour), datasets: [{ label: t('requests24h'), data: ts.map(t => t.count), backgroundColor: 'rgba(99,102,241,0.7)', borderRadius: 6, borderSkipped: false }] },
     options: {
       responsive: true,
       plugins: { legend: { display: false } },
@@ -586,6 +621,10 @@ async function loadDashboard() {
 
 // ============ Keys ============
 async function loadKeys() {
+  // Load strategy
+  api.getStrategy().then(res => {
+    document.getElementById('strategySelect').value = res.strategy || 'least_used';
+  }).catch(() => {});
   const keys = await api.keys();
   const tbody = document.querySelector('#keysTable tbody');
   const st = (k) => {
@@ -639,6 +678,11 @@ function editLimit(id, current) {
   api.setLimit(id, n).then(() => loadKeys());
 }
 
+async function changeStrategy() {
+  const strategy = document.getElementById('strategySelect').value;
+  await api.setStrategy(strategy);
+}
+
 // ============ Logs ============
 async function loadLogs(page) {
   const filter = document.getElementById('logFilter').value;
@@ -671,20 +715,54 @@ function copyMasterKey() {
   inp.type = realType;
 }
 
+// ============ Change Password ============
+async function changePassword() {
+  const oldPw = document.getElementById('oldPassword').value;
+  const newPw = document.getElementById('newPassword').value;
+  const msg = document.getElementById('pwdMsg');
+  if (!oldPw || !newPw) return;
+  try {
+    await api.changePassword(oldPw, newPw);
+    msg.textContent = t('passwordChanged');
+    msg.className = 'text-sm mt-2 text-emerald-500';
+    msg.classList.remove('hidden');
+    document.getElementById('oldPassword').value = '';
+    document.getElementById('newPassword').value = '';
+  } catch (e) {
+    msg.textContent = e.error || t('errGeneric');
+    msg.className = 'text-sm mt-2 text-red-500';
+    msg.classList.remove('hidden');
+  }
+}
+
 // ============ Members ============
 async function loadMembers() {
-  const members = await api.members();
+  const [members, keys] = await Promise.all([api.members(), api.keys()]);
+  const keyMap = {};
+  keys.forEach(k => { keyMap[k.id] = k.alias || (t('keyPrefix') + k.id); });
   const tbody = document.querySelector('#membersTable tbody');
-  tbody.innerHTML = members.map(m => `<tr class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition">
-    <td class="p-3 font-mono text-xs text-gray-400">${m.id}</td>
-    <td class="p-3 font-medium">${m.name}</td>
-    <td class="p-3 font-mono text-xs text-gray-400">${m.token_suffix ? '********' + m.token_suffix : '-'}</td>
-    <td class="p-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium ${m.is_active ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300'}">${m.is_active ? t('active') : t('disabled')}</span></td>
-    <td class="p-3 text-xs text-gray-400">${fmtTime(m.created_at)}</td>
-    <td class="p-3 text-right">
-      <button onclick="delMember(${m.id})" class="text-xs px-2.5 py-1 rounded-lg font-medium text-red-500 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800/60 transition">${t('delete')}</button>
-    </td>
-  </tr>`).join('');
+  tbody.innerHTML = members.map(m => {
+    const keyOptions = `<option value="" ${!m.api_key_id ? 'selected' : ''}>${t('unassigned')}</option>` +
+      keys.filter(k => k.is_active && !k.is_invalid).map(k =>
+        `<option value="${k.id}" ${m.api_key_id === k.id ? 'selected' : ''}>${k.alias || t('keyPrefix') + k.id}</option>`
+      ).join('');
+    return `<tr class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition">
+      <td class="p-3 font-mono text-xs text-gray-400">${m.id}</td>
+      <td class="p-3 font-medium">${m.name}</td>
+      <td class="p-3 font-mono text-xs text-gray-400">${m.token_suffix ? '********' + m.token_suffix : '-'}</td>
+      <td class="p-3"><select onchange="assignKey(${m.id}, this.value)" class="text-xs px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 dk-input">${keyOptions}</select></td>
+      <td class="p-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium ${m.is_active ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300'}">${m.is_active ? t('active') : t('disabled')}</span></td>
+      <td class="p-3 text-xs text-gray-400">${fmtTime(m.created_at)}</td>
+      <td class="p-3 text-right">
+        <button onclick="delMember(${m.id})" class="text-xs px-2.5 py-1 rounded-lg font-medium text-red-500 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800/60 transition">${t('delete')}</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function assignKey(memberId, keyId) {
+  const apiKeyId = keyId === '' ? null : parseInt(keyId);
+  await api.updateMemberKey(memberId, apiKeyId);
 }
 
 function showMemberModal() { document.getElementById('memberModal').classList.remove('hidden'); }
@@ -717,9 +795,14 @@ async function delMember(id) {
 applyTheme();
 applyI18n();
 if (TOKEN) {
-  // Try admin endpoints first; if 401, try as legacy key
-  api.stats().then(() => showApp()).catch(() => {
-    // Maybe it's a legacy key — try validating via stats
+  // Try admin endpoints — if stats succeeds, token has admin access
+  api.stats().then(() => {
+    if (!ROLE) {
+      ROLE = 'admin';
+      localStorage.setItem('c7p_role', ROLE);
+    }
+    showApp();
+  }).catch(() => {
     TOKEN = '';
     ROLE = '';
     localStorage.removeItem('c7p_token');
