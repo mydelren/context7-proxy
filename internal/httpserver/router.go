@@ -220,12 +220,28 @@ func NewRouter(deps Deps) http.Handler {
 	}
 
 	// Proxy routes — admin and members can both use
-	r.NoRoute(authMW(deps.Auth), func(c *gin.Context) {
+	r.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
 		if strings.HasPrefix(path, "/v1/") || strings.HasPrefix(path, "/api/") {
+			// Apply auth only for proxy routes
+			token := strings.TrimPrefix(c.GetHeader("Authorization"), "Bearer ")
+			if token == "" {
+				token = c.Query("api_key")
+			}
+			if token == "" {
+				c.JSON(401, gin.H{"error": "unauthorized"})
+				return
+			}
+			role, memberID, memberName := deps.Auth.Validate(token)
+			if role == "" {
+				c.JSON(401, gin.H{"error": "unauthorized"})
+				return
+			}
+			c.Set("role", role)
+			c.Set("member_id", memberID)
+			c.Set("member_name", memberName)
+
 			body, _ := c.GetRawData()
-			memberID := c.GetUint("member_id")
-			memberName := c.GetString("member_name")
 			resp, err := deps.Proxy.Do(c.Request.Context(),
 				c.Request.Method, path, c.Request.URL.RawQuery,
 				c.Request.Header, body, c.ClientIP(),
