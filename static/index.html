@@ -39,7 +39,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; }
 .nav-item { transition: all 0.15s ease; }
 .nav-item:hover { background: rgba(255,255,255,0.04); }
 
-/* Light theme overrides */
+/* === Light theme === */
 .light body { background: #f8f9fb; color: #1a1a2e; }
 .light .sidebar { background: #fff; border-color: #e5e7eb; }
 .light .topbar { background: #fff; border-color: #e5e7eb; }
@@ -49,17 +49,28 @@ body { font-family: 'DM Sans', system-ui, sans-serif; }
 .light .nav-item.active .nav-label { color: #1a1a2e; }
 .light .modal-bg { background: rgba(0,0,0,0.3); }
 
-/* Dark theme specifics */
+/* === Dark theme === */
 .dark body { background: #0a0a12; color: #e2e8f0; }
-.dark .sidebar { background: #0f0f1a; border-color: #1e1e2e; }
-.dark .topbar { background: #0f0f1a; border-color: #1e1e2e; }
-.dark .card { background: #12121e; border-color: #1e1e2e; }
+.dark .sidebar { background: #0f0f1a; border-color: #2a2a3e; }
+.dark .topbar { background: #0f0f1a; border-color: #2a2a3e; }
+.dark .card { background: #14142a; border-color: #2a2a3e; }
 .dark .modal-bg { background: rgba(0,0,0,0.6); }
+
+/* Dark form controls — unified */
+.dark input, .dark select, .dark textarea {
+  background: #1a1a2e;
+  border-color: #3a3a50;
+  color: #e2e8f0;
+}
+.dark input:focus, .dark select:focus, .dark textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.25);
+}
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+.dark ::-webkit-scrollbar-thumb { background: #3a3a50; border-radius: 3px; }
 .light ::-webkit-scrollbar-thumb { background: #ccc; }
 
 /* Chart canvas */
@@ -79,7 +90,7 @@ canvas { max-height: 220px; }
       <h1 class="text-2xl font-bold tracking-tight">Context7 Proxy</h1>
     </div>
     <input id="masterKeyInput" type="password" data-i18n-placeholder="masterKey"
-      class="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 mb-4 font-mono text-sm transition">
+      class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 mb-4 font-mono text-sm transition bg-gray-100 dark:bg-[#1a1a2e]">
     <button onclick="login()" class="w-full py-3 rounded-xl font-semibold text-white text-sm tracking-wide transition hover:brightness-110 active:scale-[0.98]"
       style="background: linear-gradient(135deg, #6366f1, #7c3aed);" data-i18n="login">Login</button>
     <p id="authError" class="text-red-400 text-sm mt-3 hidden text-center"></p>
@@ -91,13 +102,10 @@ canvas { max-height: 220px; }
 
   <!-- Sidebar -->
   <aside class="sidebar fixed left-0 top-0 bottom-0 border-r flex flex-col z-40" style="width: var(--sidebar-w);">
-    <!-- Logo -->
     <div class="flex items-center gap-2.5 px-5 h-14 border-b border-inherit shrink-0">
       <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">C7</div>
       <span class="font-bold tracking-tight text-sm">Context7 Proxy</span>
     </div>
-
-    <!-- Nav Items -->
     <nav class="flex-1 py-3 overflow-y-auto">
       <a class="nav-item active flex items-center gap-3 px-5 py-2.5 cursor-pointer" data-tab="dashboard" onclick="switchTab('dashboard')">
         <svg class="nav-icon w-[18px] h-[18px] text-gray-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
@@ -116,8 +124,6 @@ canvas { max-height: 220px; }
         <span class="nav-label text-sm text-gray-400" data-i18n="settings">Settings</span>
       </a>
     </nav>
-
-    <!-- Sidebar Footer -->
     <div class="border-t border-inherit p-4">
       <button onclick="logout()" class="flex items-center gap-2 text-xs text-gray-500 hover:text-red-400 transition w-full">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
@@ -131,15 +137,20 @@ canvas { max-height: 220px; }
     <h2 class="text-base font-semibold tracking-tight" id="pageTitle" data-i18n="dashboard">Dashboard</h2>
     <div class="flex items-center gap-2">
       <!-- Language Toggle -->
-      <button onclick="toggleLang()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 dark:bg-gray-800/60 hover:bg-gray-200 dark:hover:bg-gray-700/60 border border-gray-200 dark:border-gray-700/50 transition">
+      <button onclick="toggleLang()" id="langBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition" style="background:var(--accent);border-color:var(--accent);color:#fff;">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/></svg>
         <span id="langLabel">EN</span>
       </button>
       <!-- Theme Toggle -->
-      <button onclick="toggleTheme()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 dark:bg-gray-800/60 hover:bg-gray-200 dark:hover:bg-gray-700/60 border border-gray-200 dark:border-gray-700/50 transition" id="themeBtn">
+      <button onclick="toggleTheme()" id="themeBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition" style="background:var(--accent);border-color:var(--accent);color:#fff;">
         <svg id="themeIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/></svg>
         <span id="themeLabel">Light</span>
       </button>
+      <!-- GitHub Link -->
+      <a href="https://github.com/mydelren/context7-proxy" target="_blank" rel="noopener" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-[#1a1a2e] hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        <span>GitHub</span>
+      </a>
     </div>
   </header>
 
@@ -165,7 +176,7 @@ canvas { max-height: 220px; }
         </div>
         <div class="card border rounded-xl overflow-hidden">
           <table class="w-full text-sm" id="keysTable">
-            <thead><tr class="border-b border-gray-200 dark:border-gray-800">
+            <thead><tr class="border-b border-gray-200 dark:border-gray-700">
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="alias">Alias</th>
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="status">Status</th>
               <th class="text-right p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="used">Used</th>
@@ -181,16 +192,16 @@ canvas { max-height: 220px; }
         <div class="flex justify-between items-center mb-5">
           <h2 class="text-lg font-bold" data-i18n="requestLogs">Request Logs</h2>
           <div class="flex gap-2">
-            <select id="logFilter" onchange="loadLogs(1)" class="bg-gray-100 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/50 rounded-lg px-3 py-1.5 text-xs font-medium">
+            <select id="logFilter" onchange="loadLogs(1)" class="rounded-lg px-3 py-1.5 text-xs font-medium border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-[#1a1a2e]">
               <option value="" data-i18n="all">All</option><option value="200">200</option><option value="429">429</option>
               <option value="401">401</option><option value="500">500</option>
             </select>
-            <button onclick="clearLogs()" class="px-3 py-1.5 rounded-lg text-xs font-medium text-red-500 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 border border-red-200 dark:border-red-800/40 transition" data-i18n="clear">Clear</button>
+            <button onclick="clearLogs()" class="px-3 py-1.5 rounded-lg text-xs font-medium text-red-500 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800/60 transition" data-i18n="clear">Clear</button>
           </div>
         </div>
         <div class="card border rounded-xl overflow-hidden">
           <table class="w-full text-sm" id="logsTable">
-            <thead><tr class="border-b border-gray-200 dark:border-gray-800">
+            <thead><tr class="border-b border-gray-200 dark:border-gray-700">
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="time">Time</th>
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="method">Method</th>
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="path">Path</th>
@@ -209,14 +220,20 @@ canvas { max-height: 220px; }
           <div class="mb-6">
             <label class="text-xs font-semibold uppercase tracking-widest text-gray-400 block mb-2" data-i18n="masterKey">Master Key</label>
             <div class="flex gap-2">
-              <input id="masterKeyDisplay" readonly class="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700/50 font-mono text-sm">
-              <button onclick="copyMasterKey()" class="px-4 py-2.5 rounded-xl text-xs font-medium bg-gray-100 dark:bg-gray-800/60 hover:bg-gray-200 dark:hover:bg-gray-700/60 border border-gray-200 dark:border-gray-700/50 transition" data-i18n="copy">Copy</button>
-              <button onclick="resetMasterKey()" class="px-4 py-2.5 rounded-xl text-xs font-medium text-red-500 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 border border-red-200 dark:border-red-800/40 transition" data-i18n="reset">Reset</button>
+              <div class="relative flex-1">
+                <input id="masterKeyDisplay" readonly type="password"
+                  class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 font-mono text-sm pr-10 bg-gray-100 dark:bg-[#1a1a2e]">
+                <button onclick="toggleKeyVisibility()" id="keyEyeBtn" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition p-1">
+                  <svg id="eyeIcon" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <button onclick="copyMasterKey()" class="px-4 py-2.5 rounded-xl text-xs font-medium border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700 transition bg-gray-100 dark:bg-[#1a1a2e]" data-i18n="copy">Copy</button>
+              <button onclick="resetMasterKey()" class="px-4 py-2.5 rounded-xl text-xs font-medium text-red-500 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800/60 transition" data-i18n="reset">Reset</button>
             </div>
           </div>
           <div>
             <label class="text-xs font-semibold uppercase tracking-widest text-gray-400 block mb-2" data-i18n="mcpConfig">MCP Client Config</label>
-            <pre class="bg-gray-100 dark:bg-gray-800/60 rounded-xl p-4 text-xs font-mono overflow-x-auto border border-gray-200 dark:border-gray-700/50" id="mcpConfig"></pre>
+            <pre class="rounded-xl p-4 text-xs font-mono overflow-x-auto border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-[#1a1a2e]" id="mcpConfig"></pre>
           </div>
         </div>
       </section>
@@ -230,11 +247,11 @@ canvas { max-height: 220px; }
   <div class="card border rounded-2xl p-7 w-full max-w-md shadow-2xl" style="box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3);">
     <h3 class="font-bold text-base mb-5" data-i18n="addApiKey">Add API Key</h3>
     <input id="newKeyAlias" data-i18n-placeholder="aliasOptional"
-      class="w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 mb-3 text-sm transition">
+      class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 mb-3 text-sm transition bg-gray-100 dark:bg-[#1a1a2e]">
     <input id="newKeyValue" placeholder="ctx7sk_..."
-      class="w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 mb-5 font-mono text-sm transition">
+      class="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 mb-5 font-mono text-sm transition bg-gray-100 dark:bg-[#1a1a2e]">
     <div class="flex justify-end gap-2">
-      <button onclick="hideKeyModal()" class="px-5 py-2.5 rounded-xl text-sm font-medium bg-gray-100 dark:bg-gray-800/60 hover:bg-gray-200 dark:hover:bg-gray-700/60 border border-gray-200 dark:border-gray-700/50 transition" data-i18n="cancel">Cancel</button>
+      <button onclick="hideKeyModal()" class="px-5 py-2.5 rounded-xl text-sm font-medium border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700 transition bg-gray-100 dark:bg-[#1a1a2e]" data-i18n="cancel">Cancel</button>
       <button onclick="addKey()" class="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition hover:brightness-110 active:scale-[0.97]"
         style="background: linear-gradient(135deg, #6366f1, #7c3aed);" data-i18n="add">Add</button>
     </div>
@@ -286,6 +303,7 @@ let lang = localStorage.getItem('c7p_lang') || 'en';
 let darkMode = localStorage.getItem('c7p_theme') !== 'light';
 let TOKEN = localStorage.getItem('c7p_token') || '';
 let chart = null;
+let keyVisible = false;
 
 function t(key) { return (T[lang] && T[lang][key]) || (T.en[key]) || key; }
 
@@ -300,7 +318,6 @@ function toggleLang() {
   lang = lang === 'en' ? 'zh' : 'en';
   localStorage.setItem('c7p_lang', lang);
   applyI18n();
-  // Re-render dynamic content
   const activeTab = document.querySelector('[data-tab].active')?.dataset.tab;
   if (activeTab === 'dashboard') loadDashboard();
   if (activeTab === 'keys') loadKeys();
@@ -320,7 +337,6 @@ function applyTheme() {
   document.getElementById('themeIcon').innerHTML = darkMode
     ? '<circle cx="12" cy="12" r="5"/><path d="M12 1v2m0 18v2m-9-11h2m18 0h2m-3.3-6.7-1.4 1.4M6.7 17.3l-1.4 1.4m0-13.4 1.4 1.4m10.6 10.6 1.4 1.4"/>'
     : '<path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/>';
-  // Update chart colors if exists
   if (chart) {
     const textColor = darkMode ? '#9ca3af' : '#6b7280';
     chart.options.scales.x.ticks.color = textColor;
@@ -333,6 +349,15 @@ function toggleTheme() {
   darkMode = !darkMode;
   localStorage.setItem('c7p_theme', darkMode ? 'dark' : 'light');
   applyTheme();
+}
+
+function toggleKeyVisibility() {
+  keyVisible = !keyVisible;
+  const inp = document.getElementById('masterKeyDisplay');
+  inp.type = keyVisible ? 'text' : 'password';
+  document.getElementById('eyeIcon').innerHTML = keyVisible
+    ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>'
+    : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>';
 }
 
 // ============ API ============
@@ -379,6 +404,9 @@ async function showApp() {
   document.getElementById('authScreen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('masterKeyDisplay').value = TOKEN;
+  document.getElementById('masterKeyDisplay').type = 'password';
+  keyVisible = false;
+  document.getElementById('eyeIcon').innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>';
   const host = location.origin;
   document.getElementById('mcpConfig').textContent = JSON.stringify({
     mcpServers: { context7: { command: 'npx', args: ['-y', '@upstash/context7-mcp@latest'],
@@ -424,7 +452,7 @@ async function loadDashboard() {
   `).join('');
 
   const textColor = darkMode ? '#9ca3af' : '#6b7280';
-  const gridColor = darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)';
+  const gridColor = darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
   if (chart) chart.destroy();
   chart = new Chart(document.getElementById('chart'), {
     type: 'bar',
@@ -446,20 +474,20 @@ async function loadKeys() {
   const tbody = document.querySelector('#keysTable tbody');
   const st = (k) => {
     if (k.is_invalid) return { cls: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400', text: t('invalid') };
-    if (!k.is_active) return { cls: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400', text: t('disabled') };
+    if (!k.is_active) return { cls: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300', text: t('disabled') };
     if (k.cooldown_at) return { cls: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400', text: t('cooling') };
     return { cls: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400', text: t('active') };
   };
   tbody.innerHTML = keys.map(k => {
     const s = st(k);
-    return `<tr class="border-b border-gray-100 dark:border-gray-800/60 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition">
+    return `<tr class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition">
       <td class="p-3 font-medium">${k.alias || '-'}</td>
       <td class="p-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium ${s.cls}">${s.text}</span></td>
       <td class="p-3 text-right font-mono text-xs">${k.used_count}</td>
       <td class="p-3 text-xs text-gray-400">${fmtTime(k.last_used_at)}</td>
       <td class="p-3 text-right">
-        <button onclick="toggleKey(${k.id},${!k.is_active})" class="text-xs px-2.5 py-1 rounded-lg font-medium bg-gray-100 dark:bg-gray-800/60 hover:bg-gray-200 dark:hover:bg-gray-700/60 border border-gray-200 dark:border-gray-700/50 transition">${k.is_active ? 'Disable' : 'Enable'}</button>
-        <button onclick="delKey(${k.id})" class="text-xs px-2.5 py-1 rounded-lg font-medium text-red-500 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 border border-red-200 dark:border-red-800/40 transition ml-1">Delete</button>
+        <button onclick="toggleKey(${k.id},${!k.is_active})" class="text-xs px-2.5 py-1 rounded-lg font-medium border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700 transition bg-gray-100 dark:bg-[#1a1a2e]">${k.is_active ? 'Disable' : 'Enable'}</button>
+        <button onclick="delKey(${k.id})" class="text-xs px-2.5 py-1 rounded-lg font-medium text-red-500 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800/60 transition ml-1">Delete</button>
       </td>
     </tr>`;
   }).join('');
@@ -485,7 +513,7 @@ async function loadLogs(page) {
   const filter = document.getElementById('logFilter').value;
   const res = await api.logs(page, filter);
   const tbody = document.querySelector('#logsTable tbody');
-  tbody.innerHTML = res.logs.map(l => `<tr class="border-b border-gray-100 dark:border-gray-800/60 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition">
+  tbody.innerHTML = res.logs.map(l => `<tr class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition">
     <td class="p-3 text-xs text-gray-400 font-mono">${fmtTime(l.created_at)}</td>
     <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-mono font-medium bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">${l.method}</span></td>
     <td class="p-3 font-mono text-xs">${l.endpoint}</td>
@@ -495,7 +523,7 @@ async function loadLogs(page) {
   const totalPages = Math.ceil(res.total / 50);
   let pg = '';
   for (let i = 1; i <= totalPages; i++) {
-    pg += `<button onclick="loadLogs(${i})" class="w-8 h-8 rounded-lg text-xs font-medium transition ${i === page ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-800/60 hover:bg-gray-200 dark:hover:bg-gray-700/60 border border-gray-200 dark:border-gray-700/50'}">${i}</button>`;
+    pg += `<button onclick="loadLogs(${i})" class="w-8 h-8 rounded-lg text-xs font-medium transition ${i === page ? 'bg-indigo-600 text-white' : 'border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700 bg-gray-100 dark:bg-[#1a1a2e]'}">${i}</button>`;
   }
   document.getElementById('logPagination').innerHTML = pg;
 }
@@ -509,10 +537,19 @@ async function resetMasterKey() {
   TOKEN = res.master_key;
   localStorage.setItem('c7p_token', TOKEN);
   document.getElementById('masterKeyDisplay').value = TOKEN;
+  document.getElementById('masterKeyDisplay').type = 'password';
+  keyVisible = false;
+  document.getElementById('eyeIcon').innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>';
   alert(t('newMasterKey') + ' ' + TOKEN + '\n' + t('saveIt'));
 }
 
-function copyMasterKey() { navigator.clipboard.writeText(document.getElementById('masterKeyDisplay').value); }
+function copyMasterKey() {
+  const inp = document.getElementById('masterKeyDisplay');
+  const realType = inp.type;
+  inp.type = 'text';
+  navigator.clipboard.writeText(inp.value);
+  inp.type = realType;
+}
 
 // ============ Init ============
 applyTheme();
