@@ -66,6 +66,7 @@ body { font-family: 'DM Sans', system-ui, sans-serif; }
   border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(99,102,241,0.25);
 }
+.dark option { background: #1a1a2e; color: #e2e8f0; }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
@@ -445,7 +446,7 @@ async function loadDashboard() {
         <div class="w-7 h-7 rounded-lg bg-gradient-to-br ${c.color} flex items-center justify-center">
           <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="${c.icon}"/></svg>
         </div>
-        <span class="text-xs font-medium text-gray-400">${t(c.label)}</span>
+        <span class="text-xs font-medium text-gray-500 dark:text-gray-400">${t(c.label)}</span>
       </div>
       <div class="text-2xl font-bold font-mono">${c.value}</div>
     </div>
