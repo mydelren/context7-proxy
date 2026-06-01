@@ -1,0 +1,13 @@
+services:
+  context7-proxy:
+    build: .
+    ports:
+      - "8070:8070"
+    environment:
+      - DATABASE_PATH=/app/data/proxy.db
+      - CONTEXT7_BASE_URL=https://context7.com
+      - UPSTREAM_TIMEOUT_SEC=30
+      - COOLDOWN_SECONDS=60
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
