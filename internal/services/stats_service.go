@@ -43,9 +43,9 @@ type TimeSeriesPoint struct {
 func (s *StatsService) TimeSeries(ctx context.Context, hours int) ([]TimeSeriesPoint, error) {
 	since := time.Now().Add(-time.Duration(hours) * time.Hour)
 	// Group by day when range > 48h, otherwise by hour
-	groupFmt := "%%Y-%%m-%%d %%H:00"
+	groupFmt := "%Y-%m-%d %H:00"
 	if hours > 48 {
-		groupFmt = "%%Y-%%m-%%d"
+		groupFmt = "%Y-%m-%d"
 	}
 	sql := fmt.Sprintf(`
 		SELECT strftime('%s', created_at, 'localtime') as label, count(*) as count
