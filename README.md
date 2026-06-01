@@ -1,25 +1,36 @@
-# Context7 API Key 代理池
+# Context7 API 代理管理器
 
 简体中文 | [English](./README_EN.md)
 
-将多个 Context7 API Key 汇聚在一个 **Master Key** 之后，自动轮换、故障切换，并提供内置 Web 管理面板。
+为团队和多 Agent 场景提供统一的 Context7 API 入口，集中管理密钥、监控用量、控制访问权限。
+
+---
+
+## 为什么需要这个？
+
+当团队多人使用 AI Agent（Claude Code、Cursor、VS Code 等）接入 Context7 文档服务时，每人各自配置 API Key 会带来：
+
+- **密钥分散**：每个人各自申请、各自保存，难以统一管理
+- **用量不可见**：谁在用、用了多少、是否接近限额，没有全局视图
+- **切换成本高**：轮换 Key 需要通知所有人更新配置
+- **访问控制缺失**：无法撤销某人的访问权限而不影响其他人
+
+本项目解决以上问题：团队只需知道一个地址和一个 Master Key，所有 API Key 的生命周期由管理员统一管理。
 
 ---
 
 ## 功能特性
 
-- **透明代理**：完整转发至 `https://context7.com`（支持所有路径与方法）。
-- **Master Key 鉴权**：客户端通过 `Authorization: Bearer <MasterKey>` 安全访问，无需暴露真实 API Key。
-- **智能 Key 池管理**：
-  - 按使用次数优先分配，均衡负载。
-  - 同次数 Key 随机打散，有效防止请求过于集中触发频率限制。
-- **自动故障切换**：遇到 `429` 自动冷却并切换下一个 Key；`401` 标记为无效。
-- **MCP 支持**：内置 HTTP MCP（Model Context Protocol）端点，可接入 Claude Desktop、VS Code 等 AI 工具。
+- **统一入口**：所有 Agent 通过同一个代理地址访问 Context7 API，无需各自配置真实 Key。
+- **Master Key 鉴权**：通过 `Authorization: Bearer <MasterKey>` 访问，管理员可随时重置。
+- **智能密钥池**：
+  - 自动均衡分配请求到多个 Key，充分利用额度。
+  - 遇到限流自动冷却切换，对调用方完全透明。
 - **Web 管理面板**：
-  - **仪表盘**：统计卡片 + 24h 请求量图表。
+  - **仪表盘**：统计卡片 + 24h 请求量图表，团队用量一目了然。
   - **密钥管理**：添加、删除、启用/禁用 API Key。
-  - **请求日志**：详细记录每次请求，支持状态码过滤与清空。
-  - **设置**：查看/重置 Master Key，MCP 客户端配置（自动根据访问地址生成）。
+  - **请求日志**：详细记录每次请求，支持状态码过滤。
+  - **设置**：查看/重置 Master Key，自动生成 MCP 客户端配置。
 - **中英文 / 深浅色**：支持中英文切换和深色/浅色主题。
 - **开箱即用**：Go 单二进制，内嵌 Web UI，Docker 一键部署。
 
@@ -52,8 +63,6 @@ services:
     restart: unless-stopped
 ```
 
-克隆仓库后直接启动：
-
 ```bash
 git clone https://github.com/mydelren/context7-proxy.git
 cd context7-proxy
@@ -73,8 +82,6 @@ docker run -d \
 
 ### 本地编译
 
-需要 Go 1.24+，SQLite 依赖 CGO：
-
 ```bash
 CGO_ENABLED=1 go build -o context7-proxy .
 ./context7-proxy
@@ -84,9 +91,7 @@ CGO_ENABLED=1 go build -o context7-proxy .
 
 ## 首次运行
 
-服务在**首次启动**时会自动生成一个随机的 **Master Key**，用于登录管理面板和调用 API。
-
-查看日志获取 Master Key：
+服务首次启动时自动生成 Master Key：
 
 ```bash
 docker logs context7-proxy 2>&1 | grep "master key"
@@ -94,15 +99,15 @@ docker logs context7-proxy 2>&1 | grep "master key"
 
 日志示例：`level=INFO msg="no master key found, generated a new one" key=xxxxxxxx`
 
-打开 `http://<服务器IP>:8070`，输入 Master Key 登录，在「密钥管理」中添加你的 `ctx7sk_...` Key。
+打开 `http://<服务器IP>:8070`，输入 Master Key 登录，在「密钥管理」中添加团队的 `ctx7sk_...` Key。
 
-> 提示：建议首次登录后在「设置」页面妥善保存 Master Key。可在设置页面重置。
+> 提示：首次登录后建议妥善保存 Master Key。可在「设置」页面重置。
 
 ---
 
-## MCP 客户端配置
+## 接入 Agent
 
-将本代理接入 Claude Desktop、VS Code 等 MCP 客户端：
+将代理地址配置到 Agent 的 MCP 客户端中，团队成员共享同一个入口：
 
 ```json
 {
@@ -118,13 +123,13 @@ docker logs context7-proxy 2>&1 | grep "master key"
 }
 ```
 
-> **注意**：`CONTEXT7_API_URL` 需要替换为你的代理服务实际可访问地址。
+> **注意**：`CONTEXT7_API_URL` 需要替换为代理服务的实际可访问地址。
 >
 > - 同一台机器：`http://127.0.0.1:8070`
-> - 局域网其他设备：`http://<局域网IP>:8070`（如 `http://192.168.1.100:8070`）
+> - 局域网内：`http://<局域网IP>:8070`（如 `http://192.168.1.100:8070`）
 > - 远程服务器：`https://<域名>`（如 `https://c7.example.com`）
 >
-> 登录管理面板后，「设置」页面会自动根据当前访问地址生成配置，可直接复制使用。
+> 登录管理面板后，「设置」页面会自动根据当前访问地址生成配置，直接复制分发给团队即可。
 
 ---
 
@@ -136,7 +141,7 @@ docker logs context7-proxy 2>&1 | grep "master key"
 | `DATABASE_PATH` | `./data/proxy.db` | SQLite 数据库路径 |
 | `CONTEXT7_BASE_URL` | `https://context7.com` | 上游 Context7 API 地址 |
 | `UPSTREAM_TIMEOUT_SEC` | `30` | 上游请求超时（秒） |
-| `COOLDOWN_SECONDS` | `60` | 429 后冷却时间（秒） |
+| `COOLDOWN_SECONDS` | `60` | 限流后冷却时间（秒） |
 | `MASTER_KEY` | 自动生成 | 自定义 Master Key（可选） |
 
 ---
