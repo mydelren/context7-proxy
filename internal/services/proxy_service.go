@@ -94,6 +94,7 @@ func (p *ProxyService) tryKey(ctx context.Context, apiKey, method, path, rawQuer
 		}
 	}
 	req.Header.Set("Authorization", "Bearer "+apiKey)
+	req.Header.Set("User-Agent", "context7-proxy/1.0")
 
 	start := time.Now()
 	resp, err := p.client.Do(req)
