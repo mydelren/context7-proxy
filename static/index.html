@@ -90,6 +90,40 @@ canvas { max-height: 220px; }
 /* Dark mode topbar buttons override Tailwind bg-white */
 .dark .topbar-btn { background: #4338ca !important; color: #fff !important; }
 .dark .topbar-btn:hover { background: #6366f1 !important; }
+
+/* Data table hover & border (JS-generated rows) */
+.light .data-table tbody tr:hover { background: #f9fafb; }
+.dark .data-table tbody tr:hover { background: rgba(30, 30, 60, 0.4); }
+.dark .data-table tbody tr { border-color: rgba(55, 65, 81, 0.5); }
+
+/* Status badges */
+.badge-green { background: #ecfdf5; color: #059669; }
+.badge-red { background: #fef2f2; color: #dc2626; }
+.badge-gray { background: #f3f4f6; color: #6b7280; }
+.badge-amber { background: #fffbeb; color: #d97706; }
+.badge-indigo { background: #eef2ff; color: #4f46e5; }
+.dark .badge-green { background: rgba(5, 150, 105, 0.15); color: #34d399; }
+.dark .badge-red { background: rgba(220, 38, 38, 0.15); color: #f87171; }
+.dark .badge-gray { background: rgba(55, 65, 81, 0.5); color: #9ca3af; }
+.dark .badge-amber { background: rgba(217, 119, 6, 0.15); color: #fbbf24; }
+.dark .badge-indigo { background: rgba(79, 70, 229, 0.15); color: #818cf8; }
+
+/* Button hover overrides for dark mode */
+.dark .btn-danger:hover { background: rgba(220, 38, 38, 0.2) !important; }
+.dark .btn-warn:hover { background: rgba(217, 119, 6, 0.2) !important; }
+
+/* Stat card label (dashboard) */
+.dark .stat-label { color: #9ca3af; }
+
+/* Sidebar collapse */
+.sidebar-collapsed { --sidebar-w: 60px !important; }
+.sidebar-collapsed .nav-label { display: none; }
+.sidebar-collapsed .sidebar-brand-text { display: none; }
+.sidebar-collapsed .sidebar-collapse-btn svg { transform: rotate(180deg); }
+.sidebar-collapsed .sidebar-collapse-btn { justify-content: center; padding-left: 0; padding-right: 0; }
+.sidebar-collapsed .nav-item { justify-content: center; padding-left: 0; padding-right: 0; }
+.sidebar-collapsed .sidebar-footer { justify-content: center; }
+.sidebar-collapsed .sidebar-footer button span { display: none; }
 </style>
 </head>
 <body class="min-h-screen">
@@ -117,8 +151,11 @@ canvas { max-height: 220px; }
   <!-- Sidebar -->
   <aside class="sidebar fixed left-0 top-0 bottom-0 border-r flex flex-col z-40" style="width: var(--sidebar-w);">
     <div class="flex items-center gap-2.5 px-5 h-14 border-b border-inherit shrink-0">
-      <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">C7</div>
-      <span class="font-bold tracking-tight text-sm">Context7 Proxy</span>
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">C7</div>
+      <span class="sidebar-brand-text font-bold tracking-tight text-sm">Context7 Proxy</span>
+      <button onclick="toggleSidebar()" class="sidebar-collapse-btn ml-auto text-gray-400 hover:text-gray-200 transition p-1" title="Toggle sidebar">
+        <svg class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 19l-7-7 7-7M18 19l-7-7 7-7"/></svg>
+      </button>
     </div>
     <nav class="flex-1 py-3 overflow-y-auto">
       <a class="nav-item active flex items-center gap-3 px-5 py-2.5 cursor-pointer" data-tab="dashboard" onclick="switchTab('dashboard')">
@@ -142,9 +179,9 @@ canvas { max-height: 220px; }
         <span class="nav-label text-sm text-gray-400" data-i18n="settings">Settings</span>
       </a>
     </nav>
-    <div class="border-t border-inherit p-4">
+    <div class="sidebar-footer border-t border-inherit p-4">
       <button onclick="logout()" class="flex items-center gap-2 text-xs text-gray-500 hover:text-red-400 transition w-full">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
         <span data-i18n="logout">Logout</span>
       </button>
     </div>
@@ -174,7 +211,7 @@ canvas { max-height: 220px; }
 
   <!-- Content Area -->
   <main class="transition-all" style="margin-left: var(--sidebar-w); padding-top: var(--topbar-h);">
-    <div class="p-6 max-w-[1200px]">
+    <div class="p-6 max-w-[1200px] mx-auto">
 
       <!-- Dashboard -->
       <section id="tab-dashboard">
@@ -203,7 +240,7 @@ canvas { max-height: 220px; }
             style="background: linear-gradient(135deg, #6366f1, #7c3aed);" data-i18n="addKey">Add Key</button>
         </div>
         <div class="card border rounded-xl overflow-hidden">
-          <table class="w-full text-sm" id="keysTable">
+          <table class="w-full text-sm data-table" id="keysTable">
             <thead><tr class="border-b border-gray-200 dark:border-gray-700">
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="alias">Alias</th>
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="status">Status</th>
@@ -229,7 +266,7 @@ canvas { max-height: 220px; }
           </div>
         </div>
         <div class="card border rounded-xl overflow-hidden">
-          <table class="w-full text-sm" id="logsTable">
+          <table class="w-full text-sm data-table" id="logsTable">
             <thead><tr class="border-b border-gray-200 dark:border-gray-700">
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="time">Time</th>
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="member">Member</th>
@@ -251,7 +288,7 @@ canvas { max-height: 220px; }
             style="background: linear-gradient(135deg, #6366f1, #7c3aed);" data-i18n="addMember">Add Member</button>
         </div>
         <div class="card border rounded-xl overflow-hidden">
-          <table class="w-full text-sm" id="membersTable">
+          <table class="w-full text-sm data-table" id="membersTable">
             <thead><tr class="border-b border-gray-200 dark:border-gray-700">
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400">ID</th>
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="name">Name</th>
@@ -548,6 +585,11 @@ function logout() {
   document.getElementById('authScreen').classList.remove('hidden');
 }
 
+function toggleSidebar() {
+  document.body.classList.toggle('sidebar-collapsed');
+  localStorage.setItem('c7p_sidebar_collapsed', document.body.classList.contains('sidebar-collapsed') ? '1' : '0');
+}
+
 async function showApp() {
   document.getElementById('authScreen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
@@ -603,7 +645,7 @@ async function loadDashboard() {
         <div class="w-7 h-7 rounded-lg bg-gradient-to-br ${c.color} flex items-center justify-center">
           <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="${c.icon}"/></svg>
         </div>
-        <span class="text-xs font-medium text-gray-500 dark:text-gray-400">${t(c.label)}</span>
+        <span class="text-xs font-medium text-gray-500 stat-label">${t(c.label)}</span>
       </div>
       <div class="text-2xl font-bold font-mono">${c.value}</div>
     </div>
@@ -635,16 +677,16 @@ async function loadKeys() {
   const keys = await api.keys();
   const tbody = document.querySelector('#keysTable tbody');
   const st = (k) => {
-    if (k.is_invalid) return { cls: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400', text: t('invalid') };
-    if (!k.is_active) return { cls: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300', text: t('disabled') };
-    if (k.cooldown_at) return { cls: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400', text: t('cooling') };
-    return { cls: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400', text: t('active') };
+    if (k.is_invalid) return { cls: 'badge-red', text: t('invalid') };
+    if (!k.is_active) return { cls: 'badge-gray', text: t('disabled') };
+    if (k.cooldown_at) return { cls: 'badge-amber', text: t('cooling') };
+    return { cls: 'badge-green', text: t('active') };
   };
   tbody.innerHTML = keys.map(k => {
     const s = st(k);
     const limitDisplay = k.max_requests > 0 ? k.max_requests : '∞';
     const limitTitle = k.max_requests > 0 ? k.max_requests : t('unlimited');
-    return `<tr class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition">
+    return `<tr class="border-b border-gray-100 transition">
       <td class="p-3 font-medium">${k.alias || '-'}</td>
       <td class="p-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium ${s.cls}">${s.text}</span></td>
       <td class="p-3 text-right font-mono text-xs">${k.used_count}</td>
@@ -653,9 +695,9 @@ async function loadKeys() {
       </td>
       <td class="p-3 text-xs text-gray-400">${fmtTime(k.last_used_at)}</td>
       <td class="p-3 text-right">
-        ${k.is_active && !k.is_invalid ? `<button onclick="cooldownKey(${k.id})" class="text-xs px-2.5 py-1 rounded-lg font-medium border border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition">${t('cooldown')}</button>` : ''}
+        ${k.is_active && !k.is_invalid ? `<button onclick="cooldownKey(${k.id})" class="text-xs px-2.5 py-1 rounded-lg font-medium border border-amber-200 badge-amber btn-warn transition">${t('cooldown')}</button>` : ''}
         <button onclick="toggleKey(${k.id},${!k.is_active})" class="text-xs px-2.5 py-1 rounded-lg font-medium border border-gray-200 dk-btn transition bg-gray-100">${k.is_active ? t('disable') : t('enable')}</button>
-        <button onclick="delKey(${k.id})" class="text-xs px-2.5 py-1 rounded-lg font-medium text-red-500 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800/60 transition ml-1">${t('delete')}</button>
+        <button onclick="delKey(${k.id})" class="text-xs px-2.5 py-1 rounded-lg font-medium text-red-500 bg-red-50 btn-danger border border-red-200 transition ml-1">${t('delete')}</button>
       </td>
     </tr>`;
   }).join('');
@@ -695,10 +737,10 @@ async function loadLogs(page) {
   const filter = document.getElementById('logFilter').value;
   const res = await api.logs(page, filter);
   const tbody = document.querySelector('#logsTable tbody');
-  tbody.innerHTML = res.logs.map(l => `<tr class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition">
+  tbody.innerHTML = res.logs.map(l => `<tr class="border-b border-gray-100 transition">
     <td class="p-3 text-xs text-gray-400 font-mono">${fmtTime(l.created_at)}</td>
     <td class="p-3 text-xs text-gray-400">${l.member_name || t('unknownMember')}</td>
-    <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-mono font-medium bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">${l.method}</span></td>
+    <td class="p-3"><span class="px-2 py-0.5 rounded text-xs font-mono font-medium badge-indigo">${l.method}</span></td>
     <td class="p-3 font-mono text-xs">${l.endpoint}</td>
     <td class="p-3 text-right font-mono text-xs"><span class="${l.status_code >= 400 ? 'text-red-500' : 'text-emerald-500'}">${l.status_code}</span></td>
     <td class="p-3 text-right font-mono text-xs text-gray-400">${fmtMs(l.latency_ms)}</td>
@@ -756,16 +798,16 @@ async function loadMembers() {
       `<option value="least_used" ${s === 'least_used' ? 'selected' : ''}>${t('leastUsed')}</option>` +
       `<option value="round_robin" ${s === 'round_robin' ? 'selected' : ''}>${t('roundRobin')}</option>` +
       `<option value="random" ${s === 'random' ? 'selected' : ''}>${t('randomOrder')}</option>`;
-    return `<tr class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition">
+    return `<tr class="border-b border-gray-100 transition">
       <td class="p-3 font-mono text-xs text-gray-400">${m.id}</td>
       <td class="p-3 font-medium">${m.name}</td>
       <td class="p-3 font-mono text-xs text-gray-400"><span id="tok-${m.id}">${m.token_suffix ? '********' + m.token_suffix : '-'}</span> <button onclick="showToken(${m.id})" class="text-indigo-500 hover:text-indigo-400 text-xs ml-1" title="${t('viewToken')}">&#128065;</button></td>
-      <td class="p-3"><select onchange="assignKey(${m.id}, this.value)" class="text-xs px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 dk-input">${keyOptions}</select></td>
-      <td class="p-3"><select onchange="assignStrategy(${m.id}, this.value)" class="text-xs px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 dk-input">${stratOptions}</select></td>
-      <td class="p-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium ${m.is_active ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300'}">${m.is_active ? t('active') : t('disabled')}</span></td>
+      <td class="p-3"><select onchange="assignKey(${m.id}, this.value)" class="text-xs px-2 py-1 rounded-lg border border-gray-200 dk-input">${keyOptions}</select></td>
+      <td class="p-3"><select onchange="assignStrategy(${m.id}, this.value)" class="text-xs px-2 py-1 rounded-lg border border-gray-200 dk-input">${stratOptions}</select></td>
+      <td class="p-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium ${m.is_active ? 'badge-green' : 'badge-gray'}">${m.is_active ? t('active') : t('disabled')}</span></td>
       <td class="p-3 text-xs text-gray-400">${fmtTime(m.created_at)}</td>
       <td class="p-3 text-right">
-        <button onclick="delMember(${m.id})" class="text-xs px-2.5 py-1 rounded-lg font-medium text-red-500 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800/60 transition">${t('delete')}</button>
+        <button onclick="delMember(${m.id})" class="text-xs px-2.5 py-1 rounded-lg font-medium text-red-500 bg-red-50 btn-danger border border-red-200 transition">${t('delete')}</button>
       </td>
     </tr>`;
   }).join('');
@@ -816,6 +858,9 @@ async function delMember(id) {
 // ============ Init ============
 applyTheme();
 applyI18n();
+if (localStorage.getItem('c7p_sidebar_collapsed') === '1') {
+  document.body.classList.add('sidebar-collapsed');
+}
 if (TOKEN) {
   // Try admin endpoints — if stats succeeds, token has admin access
   api.stats().then(() => {
