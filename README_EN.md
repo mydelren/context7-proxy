@@ -26,42 +26,41 @@ Pool multiple Context7 API keys behind a single proxy endpoint. Auto-rotates on 
 
 ### Docker Compose (Recommended)
 
-```yaml
-services:
-  context7-proxy:
-    image: ghcr.io/mydelren/context7-proxy:latest
-    ports:
-      - "8070:8070"
-    environment:
-      - DATABASE_PATH=/app/data/proxy.db
-      - CONTEXT7_BASE_URL=https://context7.com
-      - UPSTREAM_TIMEOUT_SEC=30
-      - COOLDOWN_SECONDS=60
-    volumes:
-      - ./data:/app/data
-    restart: unless-stopped
-```
+Clone the repo and start:
 
 ```bash
+git clone https://github.com/mydelren/context7-proxy.git
+cd context7-proxy
 docker compose up -d
 ```
 
+The included `docker-compose.yml` builds the image automatically on first run.
+
+To customize, edit the environment variables in `docker-compose.yml`:
+
 ### Docker CLI
 
+Build the image first, then run:
+
 ```bash
+docker build -t context7-proxy .
 docker run -d \
   --name context7-proxy \
   -p 8070:8070 \
   -v $(pwd)/data:/app/data \
-  ghcr.io/mydelren/context7-proxy:latest
+  context7-proxy
 ```
 
 ### Build from Source
 
+Requires Go 1.24+ with CGO enabled (SQLite dependency):
+
 ```bash
-go build -o context7-proxy .
+CGO_ENABLED=1 go build -o context7-proxy .
 ./context7-proxy
 ```
+
+> Note: If `go mod download` is slow, try setting `GOPROXY=https://goproxy.cn,direct` (or your regional proxy).
 
 ---
 

@@ -28,40 +28,37 @@
 
 ### Docker Compose（推荐）
 
-```yaml
-services:
-  context7-proxy:
-    image: ghcr.io/mydelren/context7-proxy:latest
-    ports:
-      - "8070:8070"
-    environment:
-      - DATABASE_PATH=/app/data/proxy.db
-      - CONTEXT7_BASE_URL=https://context7.com
-      - UPSTREAM_TIMEOUT_SEC=30
-      - COOLDOWN_SECONDS=60
-    volumes:
-      - ./data:/app/data
-    restart: unless-stopped
-```
+克隆仓库后直接构建启动：
 
 ```bash
+git clone https://github.com/mydelren/context7-proxy.git
+cd context7-proxy
 docker compose up -d
 ```
 
+`docker-compose.yml` 已包含完整配置，首次运行自动构建镜像。
+
+如需自定义，可修改 `docker-compose.yml` 中的环境变量：
+
 ### Docker 原生命令
 
+先构建镜像，再运行：
+
 ```bash
+docker build -t context7-proxy .
 docker run -d \
   --name context7-proxy \
   -p 8070:8070 \
   -v $(pwd)/data:/app/data \
-  ghcr.io/mydelren/context7-proxy:latest
+  context7-proxy
 ```
 
 ### 本地编译
 
+需要 Go 1.24+，SQLite 依赖 CGO：
+
 ```bash
-go build -o context7-proxy .
+CGO_ENABLED=1 go build -o context7-proxy .
 ./context7-proxy
 ```
 
