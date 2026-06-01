@@ -46,7 +46,6 @@ This project solves all of that: the admin manages all API key lifecycles centra
 ## Requirements
 
 - **Docker / Docker Compose** (recommended, no local environment needed)
-- **Go**: `1.24+` (only for local builds, requires CGO)
 
 ---
 
@@ -57,39 +56,33 @@ This project solves all of that: the admin manages all API key lifecycles centra
 ```yaml
 services:
   context7-proxy:
-    build: .
+    image: ghcr.io/mydelren/context7-proxy:latest
     ports:
       - "8070:8070"
-    environment:
-      - DATABASE_PATH=/app/data/proxy.db
-      - CONTEXT7_BASE_URL=https://context7.com
-      - UPSTREAM_TIMEOUT_SEC=30
-      - COOLDOWN_SECONDS=60
     volumes:
       - ./data:/app/data
     restart: unless-stopped
 ```
 
 ```bash
-git clone https://github.com/mydelren/context7-proxy.git
-cd context7-proxy
 docker compose up -d
 ```
 
 ### Docker CLI
 
 ```bash
-docker build -t context7-proxy .
 docker run -d \
   --name context7-proxy \
   -p 8070:8070 \
   -v $(pwd)/data:/app/data \
-  context7-proxy
+  ghcr.io/mydelren/context7-proxy:latest
 ```
 
-### Build from Source
+### Build from Source (Optional)
 
 ```bash
+git clone https://github.com/mydelren/context7-proxy.git
+cd context7-proxy
 CGO_ENABLED=1 go build -o context7-proxy .
 ./context7-proxy
 ```

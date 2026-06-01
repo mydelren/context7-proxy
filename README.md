@@ -48,7 +48,6 @@
 ## 环境要求
 
 - **Docker / Docker Compose**（推荐，无需本地环境）
-- **Go**: `1.24+`（仅本地编译需要，依赖 CGO）
 
 ---
 
@@ -59,39 +58,33 @@
 ```yaml
 services:
   context7-proxy:
-    build: .
+    image: ghcr.io/mydelren/context7-proxy:latest
     ports:
       - "8070:8070"
-    environment:
-      - DATABASE_PATH=/app/data/proxy.db
-      - CONTEXT7_BASE_URL=https://context7.com
-      - UPSTREAM_TIMEOUT_SEC=30
-      - COOLDOWN_SECONDS=60
     volumes:
       - ./data:/app/data
     restart: unless-stopped
 ```
 
 ```bash
-git clone https://github.com/mydelren/context7-proxy.git
-cd context7-proxy
 docker compose up -d
 ```
 
 ### Docker 原生命令
 
 ```bash
-docker build -t context7-proxy .
 docker run -d \
   --name context7-proxy \
   -p 8070:8070 \
   -v $(pwd)/data:/app/data \
-  context7-proxy
+  ghcr.io/mydelren/context7-proxy:latest
 ```
 
-### 本地编译
+### 本地编译（可选）
 
 ```bash
+git clone https://github.com/mydelren/context7-proxy.git
+cd context7-proxy
 CGO_ENABLED=1 go build -o context7-proxy .
 ./context7-proxy
 ```
