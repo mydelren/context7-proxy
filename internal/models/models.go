@@ -17,6 +17,7 @@ type Member struct {
 	Token       string    `gorm:"uniqueIndex;not null" json:"-"`
 	TokenSuffix string    `gorm:"-" json:"token_suffix"`
 	APIKeyID    *uint     `gorm:"index" json:"api_key_id"`
+	Strategy    string    `gorm:"not null;default:''" json:"strategy"`
 	IsActive    bool      `gorm:"not null;default:true" json:"is_active"`
 	CreatedAt   time.Time `json:"created_at"`
 }

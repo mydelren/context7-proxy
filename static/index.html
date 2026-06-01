@@ -253,6 +253,7 @@ canvas { max-height: 220px; }
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="name">Name</th>
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="memberToken">Token</th>
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="assignedKey">Assigned Key</th>
+              <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="strategy">Strategy</th>
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="status">Status</th>
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="createdAt">Created</th>
               <th class="text-right p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="actions">Actions</th>
@@ -385,7 +386,7 @@ const T = {
     changePassword: 'Change Password', oldPassword: 'Old Password', newPassword: 'New Password',
     save: 'Save', passwordChanged: 'Password changed successfully',
     assignedKey: 'Assigned Key', unassigned: 'Unassigned', assignKey: 'Assign Key',
-    keyPrefix: 'Key #', errGeneric: 'Error',
+    keyPrefix: 'Key #', errGeneric: 'Error', defaultStrategy: 'Default', viewToken: 'View Token',
   },
   zh: {
     dashboard: '仪表盘', keys: '密钥管理', logs: '请求日志', settings: '设置', members: '成员管理',
@@ -418,7 +419,7 @@ const T = {
     changePassword: '修改密码', oldPassword: '旧密码', newPassword: '新密码',
     save: '保存', passwordChanged: '密码修改成功',
     assignedKey: '指定密钥', unassigned: '未指定', assignKey: '指定密钥',
-    keyPrefix: '密钥 #', errGeneric: '发生错误',
+    keyPrefix: '密钥 #', errGeneric: '发生错误', defaultStrategy: '默认', viewToken: '查看令牌',
   }
 };
 
@@ -505,7 +506,9 @@ const api = {
   addMember: name => fetch('/manage/members', { method: 'POST', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) }).then(r => r.json()),
   delMember: id => fetch('/manage/members/' + id, { method: 'DELETE', headers: auth() }).then(r => r.json()),
   changePassword: (oldPw, newPw) => fetch('/manage/settings/change-password', { method: 'POST', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ old_password: oldPw, new_password: newPw }) }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e))),
-  updateMemberKey: (id, apiKeyId) => fetch('/manage/members/' + id, { method: 'PUT', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ api_key_id: apiKeyId }) }).then(r => r.json()),
+  updateMemberKey: (id, apiKeyId) => fetch('/manage/members/' + id + '/key', { method: 'PUT', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ api_key_id: apiKeyId }) }).then(r => r.json()),
+  updateMemberStrategy: (id, strategy) => fetch('/manage/members/' + id + '/strategy', { method: 'PUT', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ strategy }) }).then(r => r.json()),
+  getMemberToken: id => fetch('/manage/members/' + id + '/token', { headers: auth() }).then(r => r.json()),
 };
 
 function auth() { return { 'Authorization': 'Bearer ' + TOKEN }; }
@@ -738,19 +741,23 @@ async function changePassword() {
 // ============ Members ============
 async function loadMembers() {
   const [members, keys] = await Promise.all([api.members(), api.keys()]);
-  const keyMap = {};
-  keys.forEach(k => { keyMap[k.id] = k.alias || (t('keyPrefix') + k.id); });
   const tbody = document.querySelector('#membersTable tbody');
   tbody.innerHTML = members.map(m => {
     const keyOptions = `<option value="" ${!m.api_key_id ? 'selected' : ''}>${t('unassigned')}</option>` +
       keys.filter(k => k.is_active && !k.is_invalid).map(k =>
         `<option value="${k.id}" ${m.api_key_id === k.id ? 'selected' : ''}>${k.alias || t('keyPrefix') + k.id}</option>`
       ).join('');
+    const s = m.strategy || '';
+    const stratOptions = `<option value="" ${s === '' ? 'selected' : ''}>${t('defaultStrategy')}</option>` +
+      `<option value="least_used" ${s === 'least_used' ? 'selected' : ''}>${t('leastUsed')}</option>` +
+      `<option value="round_robin" ${s === 'round_robin' ? 'selected' : ''}>${t('roundRobin')}</option>` +
+      `<option value="random" ${s === 'random' ? 'selected' : ''}>${t('randomOrder')}</option>`;
     return `<tr class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition">
       <td class="p-3 font-mono text-xs text-gray-400">${m.id}</td>
       <td class="p-3 font-medium">${m.name}</td>
-      <td class="p-3 font-mono text-xs text-gray-400">${m.token_suffix ? '********' + m.token_suffix : '-'}</td>
+      <td class="p-3 font-mono text-xs text-gray-400"><span id="tok-${m.id}">${m.token_suffix ? '********' + m.token_suffix : '-'}</span> <button onclick="showToken(${m.id})" class="text-indigo-500 hover:text-indigo-400 text-xs ml-1" title="${t('viewToken')}">&#128065;</button></td>
       <td class="p-3"><select onchange="assignKey(${m.id}, this.value)" class="text-xs px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 dk-input">${keyOptions}</select></td>
+      <td class="p-3"><select onchange="assignStrategy(${m.id}, this.value)" class="text-xs px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 dk-input">${stratOptions}</select></td>
       <td class="p-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium ${m.is_active ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300'}">${m.is_active ? t('active') : t('disabled')}</span></td>
       <td class="p-3 text-xs text-gray-400">${fmtTime(m.created_at)}</td>
       <td class="p-3 text-right">
@@ -763,6 +770,17 @@ async function loadMembers() {
 async function assignKey(memberId, keyId) {
   const apiKeyId = keyId === '' ? null : parseInt(keyId);
   await api.updateMemberKey(memberId, apiKeyId);
+}
+
+async function assignStrategy(memberId, strategy) {
+  await api.updateMemberStrategy(memberId, strategy);
+}
+
+async function showToken(memberId) {
+  const res = await api.getMemberToken(memberId);
+  const span = document.getElementById('tok-' + memberId);
+  span.textContent = res.token;
+  await navigator.clipboard.writeText(res.token);
 }
 
 function showMemberModal() { document.getElementById('memberModal').classList.remove('hidden'); }

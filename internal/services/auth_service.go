@@ -72,27 +72,35 @@ func (a *AuthService) Login(username, password string) (string, error) {
 	return token, nil
 }
 
-func (a *AuthService) Validate(token string) (role string, memberID uint, memberName string, apiKeyID *uint) {
+type MemberAuth struct {
+	Role       string
+	MemberID   uint
+	MemberName string
+	APIKeyID   *uint
+	Strategy   string
+}
+
+func (a *AuthService) Validate(token string) MemberAuth {
 	// 1) admin in-memory token
 	a.mu.RLock()
 	created, ok := a.adminTokens[token]
 	a.mu.RUnlock()
 	if ok && time.Since(created) <= tokenTTL {
-		return "admin", 0, "", nil
+		return MemberAuth{Role: "admin"}
 	}
 
 	// 2) member DB token
 	var m models.Member
 	if err := a.db.Where("token = ? AND is_active = ?", token, true).First(&m).Error; err == nil {
-		return "member", m.ID, m.Name, m.APIKeyID
+		return MemberAuth{Role: "member", MemberID: m.ID, MemberName: m.Name, APIKeyID: m.APIKeyID, Strategy: m.Strategy}
 	}
 
 	// 3) legacy MasterKey
 	if a.legacyKey != "" && token == a.legacyKey {
-		return "admin", 0, "", nil
+		return MemberAuth{Role: "admin"}
 	}
 
-	return "", 0, "", nil
+	return MemberAuth{}
 }
 
 func (a *AuthService) CreateMember(ctx context.Context, name string) (*models.Member, error) {
@@ -124,6 +132,14 @@ func (a *AuthService) ListMembers(ctx context.Context) ([]models.Member, error) 
 	return members, nil
 }
 
+func (a *AuthService) GetMemberToken(ctx context.Context, id uint) (string, error) {
+	var m models.Member
+	if err := a.db.WithContext(ctx).First(&m, id).Error; err != nil {
+		return "", fmt.Errorf("member not found")
+	}
+	return m.Token, nil
+}
+
 func (a *AuthService) DeleteMember(ctx context.Context, id uint) error {
 	r := a.db.WithContext(ctx).Delete(&models.Member{}, id)
 	if r.RowsAffected == 0 {
@@ -138,6 +154,14 @@ func (a *AuthService) UpdateMemberKey(ctx context.Context, id uint, apiKeyID *ui
 		return fmt.Errorf("member not found")
 	}
 	return a.db.WithContext(ctx).Model(&m).Updates(map[string]interface{}{"api_key_id": apiKeyID}).Error
+}
+
+func (a *AuthService) UpdateMemberStrategy(ctx context.Context, id uint, strategy string) error {
+	var m models.Member
+	if err := a.db.WithContext(ctx).First(&m, id).Error; err != nil {
+		return fmt.Errorf("member not found")
+	}
+	return a.db.WithContext(ctx).Model(&m).Update("strategy", strategy).Error
 }
 
 func (a *AuthService) LegacyKey() string { return a.legacyKey }

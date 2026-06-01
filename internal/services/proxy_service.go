@@ -35,7 +35,7 @@ type ProxyResponse struct {
 	Body       []byte
 }
 
-func (p *ProxyService) Do(ctx context.Context, method, path, rawQuery string, headers http.Header, body []byte, clientIP string, memberID uint, memberName string, assignedKeyID uint) (ProxyResponse, error) {
+func (p *ProxyService) Do(ctx context.Context, method, path, rawQuery string, headers http.Header, body []byte, clientIP string, memberID uint, memberName string, assignedKeyID uint, memberStrategy string) (ProxyResponse, error) {
 	reqID := uuid.NewString()[:8]
 
 	// If member has an assigned key, use only that key
@@ -43,7 +43,11 @@ func (p *ProxyService) Do(ctx context.Context, method, path, rawQuery string, he
 		return p.doWithAssignedKey(ctx, reqID, assignedKeyID, method, path, rawQuery, headers, body, clientIP, memberID, memberName)
 	}
 
-	strategy := p.keys.GetStrategy(ctx)
+	// Use member's strategy if set, otherwise fall back to global
+	strategy := memberStrategy
+	if strategy == "" {
+		strategy = p.keys.GetStrategy(ctx)
+	}
 	candidates, err := p.keys.Candidates(ctx, strategy)
 	if err != nil {
 		return ProxyResponse{}, err

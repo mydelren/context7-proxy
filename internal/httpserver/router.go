@@ -239,6 +239,18 @@ func NewRouter(deps Deps) http.Handler {
 			}
 			c.JSON(200, gin.H{"id": m.ID, "name": m.Name, "token": m.Token})
 		})
+		mgmt.GET("/members/:id/token", func(c *gin.Context) {
+			id, ok := parseID(c)
+			if !ok {
+				return
+			}
+			token, err := deps.Auth.GetMemberToken(c.Request.Context(), id)
+			if err != nil {
+				c.JSON(404, gin.H{"error": "member_not_found"})
+				return
+			}
+			c.JSON(200, gin.H{"token": token})
+		})
 		mgmt.DELETE("/members/:id", func(c *gin.Context) {
 			id, ok := parseID(c)
 			if !ok {
@@ -250,7 +262,7 @@ func NewRouter(deps Deps) http.Handler {
 			}
 			c.JSON(200, gin.H{"ok": true})
 		})
-		mgmt.PUT("/members/:id", func(c *gin.Context) {
+		mgmt.PUT("/members/:id/key", func(c *gin.Context) {
 			id, ok := parseID(c)
 			if !ok {
 				return
@@ -263,6 +275,24 @@ func NewRouter(deps Deps) http.Handler {
 				return
 			}
 			if err := deps.Auth.UpdateMemberKey(c.Request.Context(), id, req.APIKeyID); err != nil {
+				c.JSON(500, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(200, gin.H{"ok": true})
+		})
+		mgmt.PUT("/members/:id/strategy", func(c *gin.Context) {
+			id, ok := parseID(c)
+			if !ok {
+				return
+			}
+			var req struct {
+				Strategy string `json:"strategy"`
+			}
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(400, gin.H{"error": "invalid request"})
+				return
+			}
+			if err := deps.Auth.UpdateMemberStrategy(c.Request.Context(), id, req.Strategy); err != nil {
 				c.JSON(500, gin.H{"error": err.Error()})
 				return
 			}
@@ -283,24 +313,24 @@ func NewRouter(deps Deps) http.Handler {
 				c.JSON(401, gin.H{"error": "unauthorized"})
 				return
 			}
-			role, memberID, memberName, apiKeyID := deps.Auth.Validate(token)
-			if role == "" {
+			auth := deps.Auth.Validate(token)
+			if auth.Role == "" {
 				c.JSON(401, gin.H{"error": "unauthorized"})
 				return
 			}
-			c.Set("role", role)
-			c.Set("member_id", memberID)
-			c.Set("member_name", memberName)
+			c.Set("role", auth.Role)
+			c.Set("member_id", auth.MemberID)
+			c.Set("member_name", auth.MemberName)
 			var assignedKeyID uint
-			if apiKeyID != nil {
-				assignedKeyID = *apiKeyID
+			if auth.APIKeyID != nil {
+				assignedKeyID = *auth.APIKeyID
 			}
 
 			body, _ := c.GetRawData()
 			resp, err := deps.Proxy.Do(c.Request.Context(),
 				c.Request.Method, path, c.Request.URL.RawQuery,
 				c.Request.Header, body, c.ClientIP(),
-				memberID, memberName, assignedKeyID)
+				auth.MemberID, auth.MemberName, assignedKeyID, auth.Strategy)
 			if err != nil {
 				c.JSON(500, gin.H{"error": "proxy_error", "message": err.Error()})
 				return
@@ -330,18 +360,19 @@ func authMW(a *services.AuthService) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		role, memberID, memberName, apiKeyID := a.Validate(token)
-		if role == "" {
+		auth := a.Validate(token)
+		if auth.Role == "" {
 			c.JSON(401, gin.H{"error": "unauthorized"})
 			c.Abort()
 			return
 		}
-		c.Set("role", role)
-		c.Set("member_id", memberID)
-		c.Set("member_name", memberName)
-		if apiKeyID != nil {
-			c.Set("api_key_id", *apiKeyID)
+		c.Set("role", auth.Role)
+		c.Set("member_id", auth.MemberID)
+		c.Set("member_name", auth.MemberName)
+		if auth.APIKeyID != nil {
+			c.Set("api_key_id", *auth.APIKeyID)
 		}
+		c.Set("member_strategy", auth.Strategy)
 		c.Next()
 	}
 }
