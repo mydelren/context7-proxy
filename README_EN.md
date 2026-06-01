@@ -15,20 +15,26 @@ When multiple team members or AI agents (Claude Code, Cursor, VS Code, etc.) nee
 - **Rotation pain** — swapping a key means updating everyone's config
 - **No access control** — can't revoke one person's access without affecting others
 
-This project solves all of that: team members only need one endpoint and one Master Key. The admin manages all API key lifecycles centrally.
+This project solves all of that: the admin manages all API key lifecycles centrally, and team members access the proxy with individual Member Tokens — clear permissions, full audit trail.
 
 ---
 
 ## Features
 
 - **Unified Endpoint** — all agents access Context7 API through one proxy address. No need to distribute real API keys.
-- **Master Key Auth** — access via `Authorization: Bearer <MasterKey>`. Admin can reset anytime.
 - **Smart Key Pool** — automatically distributes requests across multiple keys for full quota utilization. Transparent failover on rate limits.
+  - **Per-Key Limits** — set maximum requests per key, auto-skip when exhausted.
+  - **Manual Cooldown** — pause any key on demand, reusing the cooldown logic.
+- **Multi-Member Management**:
+  - Admin account + Member Token system replaces single Master Key.
+  - Members can only use the proxy, not access the management panel.
+  - Request logs track which member initiated each request.
 - **Web Management UI**:
   - **Dashboard**: stat cards + 24h request chart for team-wide visibility.
-  - **Keys**: add, delete, enable/disable API keys.
-  - **Logs**: detailed request logs with status code filter.
-  - **Settings**: view/reset Master Key, auto-generated MCP client config.
+  - **Keys**: add, delete, enable/disable API keys, set limits, manual cooldown.
+  - **Members**: create members, view tokens, delete members (admin-only).
+  - **Logs**: detailed request logs with status code filter, shows member info.
+  - **Settings**: view Master Key (legacy mode), auto-generated MCP client config.
 - **i18n & Themes** — Chinese/English toggle, dark/light theme.
 - **Single Binary** — Go binary with embedded UI, one-command Docker deploy.
 
@@ -89,23 +95,28 @@ CGO_ENABLED=1 go build -o context7-proxy .
 
 ## First Run
 
-The Master Key is auto-generated on first start:
+An admin account is auto-created on first start. The password is printed to the log:
 
 ```bash
-docker logs context7-proxy 2>&1 | grep "master key"
+docker logs context7-proxy 2>&1 | grep -i "admin account created"
 ```
 
-Log example: `level=INFO msg="no master key found, generated a new one" key=xxxxxxxx`
+Log example: `2026/06/01 10:01:48 Admin account created — username: admin, password: 5bb0a5175b31f7fa`
 
-Open `http://<server-ip>:8070`, enter the Master Key, and add the team's `ctx7sk_...` keys in the Keys tab.
+Open `http://<server-ip>:8070` and log in with `admin` and the password from the logs.
 
-> Tip: Save the Master Key after first login. You can reset it from the Settings page.
+After login:
+1. Add your team's `ctx7sk_...` keys in the **Keys** tab
+2. Create members in the **Members** tab to get member tokens (for Agent configuration)
+3. Distribute member tokens to team members for Agent setup
+
+> Tip: Member tokens replace the old Master Key for proxy access. The Master Key still works for management panel login (legacy mode).
 
 ---
 
 ## Connect Your Agents
 
-Configure the proxy address in your agent's MCP client. All team members share the same endpoint:
+After creating members in the Members tab, configure the member token in your Agent's MCP client:
 
 ```json
 {
@@ -114,20 +125,22 @@ Configure the proxy address in your agent's MCP client. All team members share t
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp@latest"],
       "env": {
-        "CONTEXT7_API_URL": "http://<your-server-address>:8070"
+        "CONTEXT7_API_URL": "http://<your-server-address>:8070",
+        "CONTEXT7_API_KEY": "<member-token>"
       }
     }
   }
 }
 ```
 
-> **Note**: Replace `CONTEXT7_API_URL` with the actual address where your proxy is accessible.
+> **Note**: Replace two values:
+> - `CONTEXT7_API_URL`: the actual address where your proxy is accessible
+>   - Same machine: `http://127.0.0.1:8070`
+>   - LAN: `http://<lan-ip>:8070` (e.g., `http://192.168.1.100:8070`)
+>   - Remote: `https://<domain>` (e.g., `https://c7.example.com`)
+> - `CONTEXT7_API_KEY`: the member token created in the Members tab
 >
-> - Same machine: `http://127.0.0.1:8070`
-> - LAN: `http://<lan-ip>:8070` (e.g., `http://192.168.1.100:8070`)
-> - Remote: `https://<domain>` (e.g., `https://c7.example.com`)
->
-> After logging into the management panel, the Settings page auto-generates the config based on your access URL — just copy and distribute to your team.
+> After logging into the management panel, the Settings page auto-generates the MCP config template.
 
 ---
 

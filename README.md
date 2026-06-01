@@ -15,22 +15,28 @@
 - **切换成本高**：轮换 Key 需要通知所有人更新配置
 - **访问控制缺失**：无法撤销某人的访问权限而不影响其他人
 
-本项目解决以上问题：团队只需知道一个地址和一个 Master Key，所有 API Key 的生命周期由管理员统一管理。
+本项目解决以上问题：管理员统一管理所有 API Key，团队成员通过独立的 Member Token 接入代理，权限清晰、审计可追溯。
 
 ---
 
 ## 功能特性
 
 - **统一入口**：所有 Agent 通过同一个代理地址访问 Context7 API，无需各自配置真实 Key。
-- **Master Key 鉴权**：通过 `Authorization: Bearer <MasterKey>` 访问，管理员可随时重置。
 - **智能密钥池**：
   - 自动均衡分配请求到多个 Key，充分利用额度。
   - 遇到限流自动冷却切换，对调用方完全透明。
+  - **Per-Key 限额**：为每个 Key 设置最大请求次数，到限自动跳过。
+  - **手动冷却**：一键暂停指定 Key，复用冷却逻辑。
+- **多成员管理**：
+  - 管理员账号 + 成员 Token 体系，替代单一 Master Key。
+  - 成员只能使用代理，不能访问管理面板。
+  - 请求日志记录哪个成员发起的请求。
 - **Web 管理面板**：
   - **仪表盘**：统计卡片 + 24h 请求量图表，团队用量一目了然。
-  - **密钥管理**：添加、删除、启用/禁用 API Key。
-  - **请求日志**：详细记录每次请求，支持状态码过滤。
-  - **设置**：查看/重置 Master Key，自动生成 MCP 客户端配置。
+  - **密钥管理**：添加、删除、启用/禁用 API Key，设置限额，手动冷却。
+  - **成员管理**：创建成员、查看 Token、删除成员（管理员可见）。
+  - **请求日志**：详细记录每次请求，支持状态码过滤，显示成员信息。
+  - **设置**：查看 Master Key（兼容模式），自动生成 MCP 客户端配置。
 - **中英文 / 深浅色**：支持中英文切换和深色/浅色主题。
 - **开箱即用**：Go 单二进制，内嵌 Web UI，Docker 一键部署。
 
@@ -91,23 +97,28 @@ CGO_ENABLED=1 go build -o context7-proxy .
 
 ## 首次运行
 
-服务首次启动时自动生成 Master Key：
+服务首次启动时自动创建管理员账号，密码打印到日志：
 
 ```bash
-docker logs context7-proxy 2>&1 | grep "master key"
+docker logs context7-proxy 2>&1 | grep -i "admin account created"
 ```
 
-日志示例：`level=INFO msg="no master key found, generated a new one" key=xxxxxxxx`
+日志示例：`2026/06/01 10:01:48 Admin account created — username: admin, password: 5bb0a5175b31f7fa`
 
-打开 `http://<服务器IP>:8070`，输入 Master Key 登录，在「密钥管理」中添加团队的 `ctx7sk_...` Key。
+打开 `http://<服务器IP>:8070`，使用 `admin` 和日志中的密码登录。
 
-> 提示：首次登录后建议妥善保存 Master Key。可在「设置」页面重置。
+登录后：
+1. 在「密钥管理」中添加团队的 `ctx7sk_...` Key
+2. 在「成员管理」中创建成员，获得成员 Token（用于 Agent 配置）
+3. 将成员 Token 分发给团队成员配置 Agent
+
+> 提示：成员 Token 替代了旧的 Master Key 作为代理访问凭证。Master Key 仍可用于登录管理面板（兼容模式）。
 
 ---
 
 ## 接入 Agent
 
-将代理地址配置到 Agent 的 MCP 客户端中，团队成员共享同一个入口：
+管理员在「成员管理」中创建成员后，将获得的 Token 配置到 Agent 的 MCP 客户端中：
 
 ```json
 {
@@ -116,20 +127,22 @@ docker logs context7-proxy 2>&1 | grep "master key"
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp@latest"],
       "env": {
-        "CONTEXT7_API_URL": "http://<你的服务器地址>:8070"
+        "CONTEXT7_API_URL": "http://<你的服务器地址>:8070",
+        "CONTEXT7_API_KEY": "<成员Token>"
       }
     }
   }
 }
 ```
 
-> **注意**：`CONTEXT7_API_URL` 需要替换为代理服务的实际可访问地址。
+> **注意**：需要替换两个值：
+> - `CONTEXT7_API_URL`：代理服务的实际可访问地址
+>   - 同一台机器：`http://127.0.0.1:8070`
+>   - 局域网内：`http://<局域网IP>:8070`（如 `http://192.168.1.100:8070`）
+>   - 远程服务器：`https://<域名>`（如 `https://c7.example.com`）
+> - `CONTEXT7_API_KEY`：管理员在「成员管理」中创建的成员 Token
 >
-> - 同一台机器：`http://127.0.0.1:8070`
-> - 局域网内：`http://<局域网IP>:8070`（如 `http://192.168.1.100:8070`）
-> - 远程服务器：`https://<域名>`（如 `https://c7.example.com`）
->
-> 登录管理面板后，「设置」页面会自动根据当前访问地址生成配置，直接复制分发给团队即可。
+> 登录管理面板后，「设置」页面会自动根据当前访问地址生成 MCP 配置模板。
 
 ---
 
