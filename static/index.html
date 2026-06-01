@@ -86,6 +86,10 @@ canvas { max-height: 220px; }
 
 /* Subtle glow on stat cards */
 .stat-glow { box-shadow: 0 0 20px -5px var(--accent-glow); }
+
+/* Dark mode topbar buttons override Tailwind bg-white */
+.dark .topbar-btn { background: #4338ca !important; color: #fff !important; }
+.dark .topbar-btn:hover { background: #6366f1 !important; }
 </style>
 </head>
 <body class="min-h-screen">
