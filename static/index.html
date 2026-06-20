@@ -254,6 +254,7 @@ canvas { max-height: 220px; }
           <table class="w-full text-sm data-table" id="keysTable">
             <thead><tr class="border-b border-gray-200 dark:border-gray-700">
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="alias">Alias</th>
+              <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="keyCol">Key</th>
               <th class="text-left p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="status">Status</th>
               <th class="text-right p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="used">Used</th>
               <th class="text-right p-3 text-xs font-semibold uppercase tracking-wider text-gray-400" data-i18n="limit">Limit</th>
@@ -440,6 +441,7 @@ const T = {
     save: 'Save', passwordChanged: 'Password changed successfully',
     assignedKey: 'Assigned Key', unassigned: 'Unassigned', assignKey: 'Assign Key',
     keyPrefix: 'Key #', errGeneric: 'Error', defaultStrategy: 'Default', viewToken: 'View Token',
+    keyCol: 'Key', showKey: 'Show key', hideKey: 'Hide key', copied: 'Copied!',
   },
   zh: {
     dashboard: '仪表盘', keys: '密钥管理', logs: '请求日志', settings: '设置', members: '成员管理',
@@ -474,6 +476,7 @@ const T = {
     save: '保存', passwordChanged: '密码修改成功',
     assignedKey: '指定密钥', unassigned: '未指定', assignKey: '指定密钥',
     keyPrefix: '密钥 #', errGeneric: '发生错误', defaultStrategy: '默认', viewToken: '查看令牌',
+    keyCol: '密钥', showKey: '显示密钥', hideKey: '隐藏密钥', copied: '已复制！',
   }
 };
 
@@ -483,6 +486,7 @@ let TOKEN = localStorage.getItem('c7p_token') || '';
 let ROLE = localStorage.getItem('c7p_role') || '';
 let chart = null;
 let keyVisible = false;
+const MASKED_KEY = '••••••••••••••••';
 
 function t(key) { return (T[lang] && T[lang][key]) || (T.en[key]) || key; }
 
@@ -551,6 +555,7 @@ const api = {
   toggleKey: (id, active) => fetch('/manage/keys/' + id, { method: 'PUT', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: active }) }).then(r => r.json()),
   setLimit: (id, max) => fetch('/manage/keys/' + id, { method: 'PUT', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ max_requests: max }) }).then(r => r.json()),
   cooldownKey: id => fetch('/manage/keys/' + id + '/cooldown', { method: 'POST', headers: auth() }).then(r => r.json()),
+  getKey: id => fetch('/manage/keys/' + id + '/raw', { headers: auth() }).then(r => r.json()),
   getStrategy: () => fetch('/manage/settings/strategy', { headers: auth() }).then(r => r.json()),
   setStrategy: strategy => fetch('/manage/settings/strategy', { method: 'PUT', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ strategy }) }).then(r => r.json()),
   logs: (p, f) => { const off = (p - 1) * 50; return fetch('/manage/logs?limit=50&offset=' + off + (f ? '&status_code=' + f : ''), { headers: auth() }).then(r => r.json()); },
@@ -691,6 +696,8 @@ async function loadDashboard(hours) {
 
 // ============ Keys ============
 async function loadKeys() {
+  // Reset visible state since innerHTML rebuilds the DOM
+  Object.keys(keyVisibleState).forEach(k => { keyVisibleState[k] = false; });
   // Load strategy
   api.getStrategy().then(res => {
     document.getElementById('strategySelect').value = res.strategy || 'least_used';
@@ -707,8 +714,20 @@ async function loadKeys() {
     const s = st(k);
     const limitDisplay = k.max_requests > 0 ? k.max_requests : '∞';
     const limitTitle = k.max_requests > 0 ? k.max_requests : t('unlimited');
+    const maskedKey = MASKED_KEY;
     return `<tr class="border-b border-gray-100 transition">
       <td class="p-3 font-medium">${k.alias || '-'}</td>
+      <td class="p-3">
+        <div class="flex items-center gap-1.5">
+          <code id="key-val-${k.id}" class="text-xs font-mono text-gray-500 dark:text-gray-400 select-all">${maskedKey}</code>
+          <button onclick="toggleKeyShow(${k.id})" title="${t('showKey')}" class="text-gray-400 hover:text-indigo-500 transition p-0.5" id="key-eye-${k.id}">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+          </button>
+          <button onclick="copyKeyVal(${k.id})" title="${t('copy')}" class="text-gray-400 hover:text-emerald-500 transition p-0.5" id="key-copy-${k.id}">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          </button>
+        </div>
+      </td>
       <td class="p-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium ${s.cls}">${s.text}</span></td>
       <td class="p-3 text-right font-mono text-xs">${k.used_count}</td>
       <td class="p-3 text-right font-mono text-xs" title="${limitTitle}">
@@ -739,6 +758,47 @@ async function addKey() {
 async function toggleKey(id, active) { await api.toggleKey(id, active); loadKeys(); }
 async function delKey(id) { if (confirm(t('confirmDelete'))) { await api.delKey(id); loadKeys(); } }
 async function cooldownKey(id) { await api.cooldownKey(id); loadKeys(); }
+
+// Key visibility & copy
+const keyCache = {};
+const keyVisibleState = {};
+
+async function toggleKeyShow(id) {
+  const el = document.getElementById('key-val-' + id);
+  if (keyVisibleState[id]) {
+    el.textContent = MASKED_KEY;
+    keyVisibleState[id] = false;
+    document.getElementById('key-eye-' + id).title = t('showKey');
+  } else {
+    if (!keyCache[id]) {
+      try {
+        const res = await api.getKey(id);
+        keyCache[id] = res.key;
+      } catch { return; }
+    }
+    el.textContent = keyCache[id];
+    keyVisibleState[id] = true;
+    document.getElementById('key-eye-' + id).title = t('hideKey');
+  }
+}
+
+async function copyKeyVal(id) {
+  if (!keyCache[id]) {
+    try {
+      const res = await api.getKey(id);
+      keyCache[id] = res.key;
+    } catch { return; }
+  }
+  const btn = document.getElementById('key-copy-' + id);
+  try {
+    await navigator.clipboard.writeText(keyCache[id]);
+    const origHTML = btn.innerHTML;
+    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
+    setTimeout(() => { btn.innerHTML = origHTML; }, 1500);
+  } catch {
+    // Clipboard API not available — silently fail
+  }
+}
 
 function editLimit(id, current) {
   const val = prompt(t('enterLimit'), current || 0);
