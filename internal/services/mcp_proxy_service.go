@@ -176,7 +176,11 @@ func (s *MCPProxyService) doWithAssignedKey(ctx context.Context, reqID, method, 
 }
 
 func (s *MCPProxyService) tryOnce(ctx context.Context, reqID, apiKey, method, path, rawQuery string, headers http.Header, body []byte) (int, []byte, int64, error) {
-	u := s.upstream + path
+	upstreamPath := path
+	if upstreamPath == "" || upstreamPath == "/" || upstreamPath == "/mcp" {
+		upstreamPath = ""
+	}
+	u := s.upstream + upstreamPath
 	if rawQuery != "" {
 		u += "?" + rawQuery
 	}
