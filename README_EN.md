@@ -60,6 +60,7 @@ services:
     image: ghcr.io/mydelren/context7-proxy:latest
     ports:
       - "8070:8070"
+      - "19187:8070"
     volumes:
       - ./data:/app/data
     restart: unless-stopped
@@ -75,6 +76,7 @@ docker compose up -d
 docker run -d \
   --name context7-proxy \
   -p 8070:8070 \
+  -p 19187:8070 \
   -v $(pwd)/data:/app/data \
   ghcr.io/mydelren/context7-proxy:latest
 ```
@@ -120,7 +122,7 @@ After creating members in the Members tab, configure the member token in your Ag
 {
   "mcpServers": {
     "context7": {
-      "url": "http://<your-server-address>:8070/mcp",
+      "url": "http://<your-server-address>:19187/mcp",
       "headers": {
         "CONTEXT7_API_KEY": "<member-token>"
       }
@@ -131,10 +133,14 @@ After creating members in the Members tab, configure the member token in your Ag
 
 > **Note**: Replace two values:
 > - `url`: the actual address where your proxy is accessible
->   - Same machine: `http://127.0.0.1:8070/mcp`
->   - LAN: `http://<lan-ip>:8070/mcp` (e.g., `http://192.168.1.100:8070/mcp`)
+>   - Same machine: `http://127.0.0.1:19187/mcp`
+>   - LAN: `http://<lan-ip>:19187/mcp` (e.g., `http://192.168.1.100:19187/mcp`)
 >   - Remote: `https://<domain>/mcp` (e.g., `https://c7.example.com/mcp`)
 > - `CONTEXT7_API_KEY`: the member token created in the Members tab
+>
+> Recommended split:
+> - `8070` for the management UI and health checks
+> - `19187` for MCP clients
 >
 > After logging into the management panel, the Settings page auto-generates the MCP config template.
 

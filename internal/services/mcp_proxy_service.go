@@ -97,9 +97,10 @@ func (s *MCPProxyService) forward(ctx context.Context, reqID, method, path, rawQ
 		return http.StatusServiceUnavailable, nil
 	}
 
+	var last429Headers http.Header
 	var last429 []byte
 	for _, c := range candidates {
-		status, respBody, latency, err := s.tryOnce(ctx, reqID, c.Key, method, path, rawQuery, headers, body)
+		status, respHeaders, respBody, latency, err := s.tryOnce(ctx, reqID, c.Key, method, path, rawQuery, headers, body)
 		if err != nil {
 			log.Printf("[%s] mcp key %d (%s) error: %v", reqID, c.ID, c.Alias, err)
 			continue
@@ -111,20 +112,21 @@ func (s *MCPProxyService) forward(ctx context.Context, reqID, method, path, rawQ
 			continue
 		case http.StatusTooManyRequests:
 			s.keys.MarkCooldown(ctx, c.ID)
+			last429Headers = respHeaders
 			last429 = respBody
 			log.Printf("[%s] mcp key %d (%s) rate limited (429)", reqID, c.ID, c.Alias)
 			continue
 		default:
 			s.keys.MarkUsed(ctx, c.ID)
 			s.logReq(ctx, reqID, c.ID, c.Alias, method, path, status, latency, clientIP, memberID, memberName)
-			copyUpstreamResponse(w, status, nil, respBody)
+			copyUpstreamResponse(w, status, respHeaders, respBody)
 			return status, nil
 		}
 	}
 
 	if len(last429) > 0 {
 		s.logReq(ctx, reqID, 0, "", method, path, http.StatusTooManyRequests, 0, clientIP, memberID, memberName)
-		writeJSONBytes(w, http.StatusTooManyRequests, last429)
+		copyUpstreamResponse(w, http.StatusTooManyRequests, last429Headers, last429)
 		return http.StatusTooManyRequests, nil
 	}
 
@@ -151,7 +153,7 @@ func (s *MCPProxyService) doWithAssignedKey(ctx context.Context, reqID, method, 
 		return http.StatusTooManyRequests, nil
 	}
 
-	status, respBody, latency, err := s.tryOnce(ctx, reqID, k.Key, method, path, rawQuery, headers, body)
+	status, respHeaders, respBody, latency, err := s.tryOnce(ctx, reqID, k.Key, method, path, rawQuery, headers, body)
 	if err != nil {
 		log.Printf("[%s] assigned mcp key %d (%s) error: %v", reqID, k.ID, k.Alias, err)
 		writeJSONError(w, http.StatusBadGateway, "assigned_key_request_failed")
@@ -165,17 +167,17 @@ func (s *MCPProxyService) doWithAssignedKey(ctx context.Context, reqID, method, 
 	case http.StatusTooManyRequests:
 		s.keys.MarkCooldown(ctx, k.ID)
 		s.logReq(ctx, reqID, k.ID, k.Alias, method, path, status, latency, clientIP, memberID, memberName)
-		writeJSONBytes(w, status, respBody)
+		copyUpstreamResponse(w, status, respHeaders, respBody)
 		return status, nil
 	default:
 		s.keys.MarkUsed(ctx, k.ID)
 		s.logReq(ctx, reqID, k.ID, k.Alias, method, path, status, latency, clientIP, memberID, memberName)
-		copyUpstreamResponse(w, status, nil, respBody)
+		copyUpstreamResponse(w, status, respHeaders, respBody)
 		return status, nil
 	}
 }
 
-func (s *MCPProxyService) tryOnce(ctx context.Context, reqID, apiKey, method, path, rawQuery string, headers http.Header, body []byte) (int, []byte, int64, error) {
+func (s *MCPProxyService) tryOnce(ctx context.Context, reqID, apiKey, method, path, rawQuery string, headers http.Header, body []byte) (int, http.Header, []byte, int64, error) {
 	upstreamPath := path
 	if upstreamPath == "" || upstreamPath == "/" || upstreamPath == "/mcp" {
 		upstreamPath = ""
@@ -191,7 +193,7 @@ func (s *MCPProxyService) tryOnce(ctx context.Context, reqID, apiKey, method, pa
 	}
 	req, err := http.NewRequestWithContext(ctx, method, u, r)
 	if err != nil {
-		return 0, nil, 0, err
+		return 0, nil, nil, 0, err
 	}
 	for k, vs := range headers {
 		if shouldSkipForwardHeader(k) || strings.EqualFold(k, "CONTEXT7_API_KEY") {
@@ -207,18 +209,18 @@ func (s *MCPProxyService) tryOnce(ctx context.Context, reqID, apiKey, method, pa
 	resp, err := s.client.Do(req)
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
-		return 0, nil, latency, err
+		return 0, nil, nil, latency, err
 	}
 	defer resp.Body.Close()
+	respHeaders := resp.Header.Clone()
 
 	switch resp.StatusCode {
 	case http.StatusUnauthorized, http.StatusTooManyRequests:
 		b, _ := io.ReadAll(resp.Body)
-		return resp.StatusCode, b, latency, nil
+		return resp.StatusCode, respHeaders, b, latency, nil
 	default:
-		// Stream the upstream response body directly after the caller decides to accept it.
 		b, err := io.ReadAll(resp.Body)
-		return resp.StatusCode, b, latency, err
+		return resp.StatusCode, respHeaders, b, latency, err
 	}
 }
 

@@ -1,207 +1,153 @@
-# Context7 Proxy MCP HTTP Exposure Implementation Plan
+# Context7 Proxy MCP HTTP 修复与交付计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> 这份计划只针对当前已经存在的 `context7-proxy` 单进程 `/mcp` 直出链路做收敛修复与交付，不重做一套本地 MCP server，不新增第二运行时。
 
-**Goal:** Expose `context7-proxy` as a direct MCP HTTP server on the same Go process, while keeping the existing Context7 API proxy, auth, logs, and admin UI intact.
+## 目标
 
-**Architecture:** Keep the current Go + Gin + SQLite service as the single runtime. Add a direct `/mcp` endpoint to the existing Gin router so MCP clients can reach Context7 through the same process. The current implementation forwards MCP traffic to the official Context7 MCP upstream and keeps the existing proxy/key/log services, web UI, and admin API on the same port.
+在保留现有 `context7-proxy` 单进程架构、数据库、管理 UI、成员 token、密钥池和 API 代理能力的前提下，完成以下交付：
 
-**Tech Stack:** Go 1.24, Gin, GORM, SQLite, Docker.
+1. 修复 `/mcp` 上游路径重复拼接问题，避免请求被转发到 `.../mcp/mcp`
+2. 修复 MCP 上游响应头透传问题，至少保证 `Content-Type` 与 `Mcp-Session-Id` 不丢
+3. 保持本地运行形态为：
+   - 管理/UI：`http://127.0.0.1:8070`
+   - MCP：`http://127.0.0.1:19187/mcp`
+   - 实现方式：同一容器进程监听 `8070`，host 额外映射 `19187 -> 8070`
+4. 保留现有持久化数据和 live 配置，不重置数据库、不重建 token
+5. 最终让 Codex 和 Claude 都能通过 `http://127.0.0.1:19187/mcp` 做真实 MCP 调用
 
----
+## 范围边界
 
-## File Structure
+本次允许修改：
 
-```
-context7-proxy/
-├── main.go
-├── go.mod
-├── go.sum
-├── internal/
-│   ├── config/config.go
-│   ├── db/db.go
-│   ├── httpserver/
-│   │   ├── router.go
-│   │   └── server.go
-│   ├── mcp/
-│   │   ├── server.go
-│   │   ├── tools.go
-│   │   └── auth.go
-│   ├── models/models.go
-│   └── services/
-│       ├── auth_service.go
-│       ├── key_service.go
-│       ├── log_service.go
-│       ├── master_key.go
-│       ├── proxy_service.go
-│       └── stats_service.go
-├── README.md
-├── README_EN.md
-└── docs/
-    └── active/system/CONTEXT7_PROXY_RUNBOOK.md
-```
+- `internal/services/mcp_proxy_service.go`
+- 针对上述修复的最小回归测试
+- 仓库内 README / compose 示例 / 运行文档
+- live compose 的 host 端口映射与镜像更新
 
----
+本次明确不做：
 
-### Task 1: Lock the MCP contract and test surface
+- 不引入 `mcp-go`
+- 不新增 `internal/mcp/*`
+- 不把当前实现改造成“本地自定义工具集合”
+- 不重写成员认证模型
+- 不迁移数据库或变更数据目录
 
-**Files:**
-- Create: `internal/mcp/server_test.go`
-- Create: `internal/mcp/tools_test.go`
-- Modify: `README.md`
-- Modify: `README_EN.md`
+## 已知 P0 问题
 
-- [ ] **Step 1: Define the acceptance contract in tests**
+### P0-1 上游路径重复
 
-Create tests that assert the MCP server exposes exactly two tools and that the server is mounted at `/mcp`:
-
-```go
-want := []string{"resolve-library-id", "query-docs"}
-```
-
-Use `httptest.NewServer` with the mounted handler and verify:
-
-```json
-{"jsonrpc":"2.0","id":1,"method":"initialize", ...}
-{"jsonrpc":"2.0","id":2,"method":"tools/list", ...}
-```
-
-The `tools/list` response must contain both tool names and no extra custom tools.
-
-- [ ] **Step 2: Add one proxy-backed tool test**
-
-Add a test that stubs the upstream call and verifies `resolve-library-id` returns a text result containing the selected library ID.
-
-- [ ] **Step 3: Add one docs-backed tool test**
-
-Add a test that stubs the upstream call and verifies `query-docs` returns the fetched documentation text for a supplied library ID.
-
-- [ ] **Step 4: Record the expected runtime shape**
-
-Update the docs to say the default runtime shape is now:
+当前 `/mcp` 请求在某些情况下会被转发成：
 
 ```text
-http://127.0.0.1:8070/mcp
+https://mcp.context7.com/mcp/mcp
 ```
 
-and note that this replaces the separate `@upstash/context7-mcp` wrapper in the normal path.
-
----
-
-### Task 2: Add the MCP server package
-
-**Files:**
-- Create: `internal/mcp/server.go`
-- Create: `internal/mcp/tools.go`
-- Create: `internal/mcp/auth.go`
-- Modify: `go.mod`
-- Modify: `go.sum`
-
-- [ ] **Step 1: Add the MCP SDK dependency**
-
-Add `github.com/mark3labs/mcp-go` to `go.mod` so the service can speak MCP streamable HTTP directly.
-
-- [ ] **Step 2: Mount `/mcp` in the existing HTTP process**
-
-Mount the direct `/mcp` route inside the current Gin router with `http.Handler` or equivalent. Keep it in the same listener as the web UI and admin API.
-
-- [ ] **Step 3: Preserve auth and logging**
-
-Keep the member-token / legacy-master-key auth rules and request logging behavior unchanged for the `/mcp` path.
-
-- [ ] **Step 4: Keep the implementation surface narrow**
-
-Do not introduce a second runtime, wrapper daemon, or extra per-session MCP process in the normal path.
-
----
-
-### Task 3: Wire MCP into the existing HTTP process
-
-**Files:**
-- Modify: `main.go`
-- Modify: `internal/httpserver/router.go`
-- Modify: `internal/httpserver/server.go`
-- Modify: `internal/services/proxy_service.go`
-
-- [ ] **Step 1: Instantiate the `/mcp` handler from `main.go`**
-
-Create the `/mcp` handler alongside the current `AuthService`, `KeyService`, `LogService`, and `ProxyService`, and pass the same dependencies into it.
-
-- [ ] **Step 2: Mount `/mcp` on the same listener**
-
-Add one HTTP route on the existing Gin router for the MCP transport with `gin.WrapH(...)` or equivalent. Keep `/healthz`, `/manage/*`, and the current proxy routes unchanged.
-
-- [ ] **Step 3: Keep auth behavior consistent**
-
-Use the same member token / legacy master key rules for the MCP endpoint that the rest of the service already uses, so the new path does not create a second credential model.
-
-- [ ] **Step 4: Relax the server timeout for streaming**
-
-Change `http.Server` setup so the MCP path is not cut off by a fixed short `WriteTimeout`. Keep a read deadline for request headers if needed, but do not impose a 60s write timeout on the whole server if it breaks streamable HTTP.
-
----
-
-### Task 4: Update runtime and docs for the new direct path
-
-**Files:**
-- Modify: `README.md`
-- Modify: `README_EN.md`
-- Create: `docs/mcp-http-runbook.md`
-
-- [ ] **Step 1: Replace the old client snippet**
-
-Change the documented Context7 client setup from the separate stdio wrapper to the direct HTTP MCP endpoint on this service.
-
-- [ ] **Step 2: Document the operational boundary**
-
-State clearly that the service still manages Context7 API keys and usage logs, but now also exposes MCP directly, so the wrapper process is no longer required in the normal path.
-
-- [ ] **Step 3: Add rollback notes**
-
-Document the rollback path: keep the existing API proxy and UI, and disable only the `/mcp` route if the new path needs to be taken out of service.
-
-- [ ] **Step 4: Document failure classification**
-
-Write three concrete failure buckets:
+正确行为应为：
 
 ```text
-transport failed -> MCP route/handler issue
-unauthorized -> auth token / member token issue
-upstream failed -> Context7 API / key pool issue
+https://mcp.context7.com/mcp
 ```
 
----
+### P0-2 上游响应头丢失
 
-### Task 5: Verify real `/mcp` behavior end to end
+当前代理曾出现只转发 body、不转发上游响应头的问题，导致 MCP 客户端丢失：
 
-**Files:**
-- No new files; verification only
+- `Content-Type`
+- `Mcp-Session-Id`
 
-- [ ] **Step 1: Build the binary**
+这会直接破坏 streamable HTTP MCP 会话连续性。
 
-Run:
+## 执行步骤
+
+### 1. 代码修复
+
+- 在 `MCPProxyService.tryOnce(...)` 中：
+  - 归一化 `""`、`"/"`、`"/mcp"`，避免上游重复拼接
+  - 返回上游 `http.Header`
+- 在 `forward(...)` 与 `doWithAssignedKey(...)` 中：
+  - 成功响应透传上游 header + body
+  - `429` 响应也透传上游 header + body
+- 保持 `/manage/*`、静态 UI、现有 `/api|/v1` 代理不变
+
+### 2. 回归测试
+
+至少覆盖：
+
+1. `/mcp` 不会被转发成 `/mcp/mcp`
+2. `initialize` 成功响应时会透传：
+   - `Content-Type`
+   - `Mcp-Session-Id`
+3. `429` 响应时也会透传：
+   - `Content-Type`
+   - `Mcp-Session-Id`
+
+### 3. 发布前门禁
+
+发布前必须记录：
+
+1. 当前 live compose 备份
+2. 当前 live 镜像 digest
+3. `GET /healthz` 正常
+4. live 数据库仍存在成员 token，且不做重置
+
+### 4. 镜像发布
+
+1. 提交代码
+2. `git push origin master`（必要时走本机 `7890` 代理）
+3. 等待 GitHub Actions 的 Go CI 与镜像构建完成
+4. 确认目标 commit 对应镜像已生成，再动 live
+
+### 5. Live 更新
+
+更新 live compose：
+
+- 保留 `8070:8070`
+- 增加 `19187:8070`
+- 保持 `./data:/app/data`
+- 使用新镜像 `ghcr.io/mydelren/context7-proxy:latest`
+
+然后：
 
 ```bash
-cd /home/lenovo/workspace/ops/context7-proxy
-go build ./...
+docker compose pull
+docker compose up -d
 ```
 
-- [ ] **Step 2: Start the service and check the port**
+### 6. Live 验证
 
-Run the Docker compose stack or the local binary and verify `:8070` is listening.
+必须做真实验证，不能只看配置：
 
-- [ ] **Step 3: Verify the `/mcp` route is mounted**
+1. `http://127.0.0.1:8070/healthz` 返回 200
+2. `http://127.0.0.1:8070` 管理/UI 仍可访问
+3. 对 `http://127.0.0.1:19187/mcp` 用真实 member token 发 MCP initialize
+   - 断言 `Content-Type`
+   - 断言 `Mcp-Session-Id`
+4. 用同一 session 做 `tools/list`
+5. 再做一次真实 `tools/call`
+   - `resolve-library-id`
+   - 或 `query-docs`
+6. 再用真实客户端验证：
+   - Codex Context7 MCP
+   - Claude Context7 MCP
 
-Send a request against `/mcp` and confirm the route is served by the same listener as the UI and admin API.
+## 回滚
 
-- [ ] **Step 4: Confirm the existing proxy/UI still works**
+如 live 更新后异常，按以下顺序回滚：
 
-Temporarily disable the `/mcp` route only, leave `/manage` and `/api|/v1` untouched, and confirm the existing proxy/UI still works.
+1. 使用已备份的 compose 恢复
+2. 回到更新前镜像 digest
+3. 保留 `./data/proxy.db` 原样，不删库
+4. 保证最少恢复到：
+   - `8070` 管理/UI 正常
+   - 数据和 token 仍在
 
----
+## 通过标准
 
-## Self-Review
+只有同时满足以下条件，才算本次交付完成：
 
-- The plan covers the current proxy, auth, logs, and UI and keeps them intact.
-- The plan adds a direct MCP transport instead of a second wrapper process.
-- The plan keeps rollback simple: remove or disable the MCP route, not the whole service.
+1. 仓库测试通过
+2. GitHub Actions 构建通过
+3. live 容器已更新到新镜像
+4. `8070` UI 正常
+5. `19187/mcp` 真实 initialize / tools/list / tools/call 成功
+6. Codex 与 Claude 的 Context7 MCP 都能实际调用

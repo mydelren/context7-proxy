@@ -62,6 +62,7 @@ services:
     image: ghcr.io/mydelren/context7-proxy:latest
     ports:
       - "8070:8070"
+      - "19187:8070"
     volumes:
       - ./data:/app/data
     environment:
@@ -79,6 +80,7 @@ docker compose up -d
 docker run -d \
   --name context7-proxy \
   -p 8070:8070 \
+  -p 19187:8070 \
   -v $(pwd)/data:/app/data \
   -e TZ=Asia/Shanghai \
   ghcr.io/mydelren/context7-proxy:latest
@@ -123,9 +125,9 @@ docker logs context7-proxy 2>&1 | grep -i "admin account created"
 
 ```json
 {
-  "mcpServers": {
-    "context7": {
-      "url": "http://<你的服务器地址>:8070/mcp",
+    "mcpServers": {
+      "context7": {
+      "url": "http://<你的服务器地址>:19187/mcp",
       "headers": {
         "CONTEXT7_API_KEY": "<成员Token>"
       }
@@ -136,10 +138,14 @@ docker logs context7-proxy 2>&1 | grep -i "admin account created"
 
 > **注意**：需要替换两个值：
 > - `url`：代理服务的实际可访问地址
->   - 同一台机器：`http://127.0.0.1:8070/mcp`
->   - 局域网内：`http://<局域网IP>:8070/mcp`（如 `http://192.168.1.100:8070/mcp`）
+>   - 同一台机器：`http://127.0.0.1:19187/mcp`
+>   - 局域网内：`http://<局域网IP>:19187/mcp`（如 `http://192.168.1.100:19187/mcp`）
 >   - 远程服务器：`https://<域名>/mcp`（如 `https://c7.example.com/mcp`）
 > - `CONTEXT7_API_KEY`：管理员在「成员管理」中创建的成员 Token
+>
+> 推荐约定：
+> - `8070` 用于管理面板与健康检查
+> - `19187` 用于 MCP 客户端
 >
 > 登录管理面板后，「设置」页面会自动根据当前访问地址生成 MCP 配置模板。
 

@@ -3,6 +3,7 @@ services:
     build: .
     ports:
       - "8070:8070"
+      - "19187:8070"
     environment:
       - DATABASE_PATH=/app/data/proxy.db
       - CONTEXT7_BASE_URL=https://context7.com
