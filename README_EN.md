@@ -84,7 +84,7 @@ docker run -d \
 ```bash
 git clone https://github.com/mydelren/context7-proxy.git
 cd context7-proxy
-CGO_ENABLED=1 go build -o context7-proxy .
+CGO_ENABLED=0 go build -o context7-proxy .
 ./context7-proxy
 ```
 
