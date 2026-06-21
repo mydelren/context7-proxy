@@ -2,7 +2,7 @@
 
 [简体中文](./README.md) | English
 
-A unified Context7 API gateway for teams and multi-agent setups. Centralize key management, monitor usage, and control access — all from one endpoint.
+A unified Context7 API gateway for teams and multi-agent setups. Centralize key management, monitor usage, control access, and expose `/mcp` directly — all from one endpoint.
 
 ---
 
@@ -22,6 +22,7 @@ This project solves all of that: the admin manages all API key lifecycles centra
 ## Features
 
 - **Unified Endpoint** — all agents access Context7 API through one proxy address. No need to distribute real API keys.
+- **Direct MCP exposure** — the service also exposes `/mcp` for MCP clients and forwards to the official Context7 MCP upstream in the same process.
 - **Smart Key Pool** — automatically distributes requests across multiple keys for full quota utilization. Transparent failover on rate limits.
   - **Per-Key Limits** — set maximum requests per key (default 1000), auto-skip when exhausted.
   - **Manual Cooldown** — pause any key on demand, reusing the cooldown logic.
@@ -119,10 +120,8 @@ After creating members in the Members tab, configure the member token in your Ag
 {
   "mcpServers": {
     "context7": {
-      "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp@latest"],
-      "env": {
-        "CONTEXT7_API_URL": "http://<your-server-address>:8070",
+      "url": "http://<your-server-address>:8070/mcp",
+      "headers": {
         "CONTEXT7_API_KEY": "<member-token>"
       }
     }
@@ -131,10 +130,10 @@ After creating members in the Members tab, configure the member token in your Ag
 ```
 
 > **Note**: Replace two values:
-> - `CONTEXT7_API_URL`: the actual address where your proxy is accessible
->   - Same machine: `http://127.0.0.1:8070`
->   - LAN: `http://<lan-ip>:8070` (e.g., `http://192.168.1.100:8070`)
->   - Remote: `https://<domain>` (e.g., `https://c7.example.com`)
+> - `url`: the actual address where your proxy is accessible
+>   - Same machine: `http://127.0.0.1:8070/mcp`
+>   - LAN: `http://<lan-ip>:8070/mcp` (e.g., `http://192.168.1.100:8070/mcp`)
+>   - Remote: `https://<domain>/mcp` (e.g., `https://c7.example.com/mcp`)
 > - `CONTEXT7_API_KEY`: the member token created in the Members tab
 >
 > After logging into the management panel, the Settings page auto-generates the MCP config template.

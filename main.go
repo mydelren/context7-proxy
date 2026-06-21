@@ -59,6 +59,7 @@ func main() {
 
 	logs := services.NewLogService(gormDB)
 	stats := services.NewStatsService(gormDB)
+	mcp := services.NewMCPProxyService(auth, keys, logs, cfg.UpstreamTimeout)
 
 	// Daily log cleanup — delete logs older than 30 days
 	go func() {
@@ -78,6 +79,7 @@ func main() {
 		Logs:     logs,
 		Stats:    stats,
 		Proxy:    proxy,
+		MCP:      mcp,
 		StaticFS: staticFS,
 	})
 

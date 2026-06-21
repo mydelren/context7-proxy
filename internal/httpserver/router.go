@@ -18,6 +18,7 @@ type Deps struct {
 	Logs     *services.LogService
 	Stats    *services.StatsService
 	Proxy    *services.ProxyService
+	MCP      *services.MCPProxyService
 	StaticFS embed.FS
 }
 
@@ -27,6 +28,9 @@ func NewRouter(deps Deps) http.Handler {
 	r.Use(gin.Logger(), gin.Recovery())
 
 	r.GET("/healthz", func(c *gin.Context) { c.JSON(200, gin.H{"ok": true}) })
+	if deps.MCP != nil {
+		r.Any("/mcp", gin.WrapH(deps.MCP))
+	}
 
 	// Public: login
 	r.POST("/manage/login", func(c *gin.Context) {

@@ -2,7 +2,7 @@
 
 简体中文 | [English](./README_EN.md)
 
-为团队和多 Agent 场景提供统一的 Context7 API 入口，集中管理密钥、监控用量、控制访问权限。
+为团队和多 Agent 场景提供统一的 Context7 API 入口，集中管理密钥、监控用量、控制访问权限，并直接暴露 `/mcp`。
 
 ---
 
@@ -22,6 +22,7 @@
 ## 功能特性
 
 - **统一入口**：所有 Agent 通过同一个代理地址访问 Context7 API，无需各自配置真实 Key。
+- **直接 MCP 暴露**：本服务同时提供 `/mcp`，同进程接入 MCP 客户端并转发到官方 Context7 MCP 上游。
 - **智能密钥池**：
   - 自动均衡分配请求到多个 Key，充分利用额度。
   - 遇到限流自动冷却切换，对调用方完全透明。
@@ -124,10 +125,8 @@ docker logs context7-proxy 2>&1 | grep -i "admin account created"
 {
   "mcpServers": {
     "context7": {
-      "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp@latest"],
-      "env": {
-        "CONTEXT7_API_URL": "http://<你的服务器地址>:8070",
+      "url": "http://<你的服务器地址>:8070/mcp",
+      "headers": {
         "CONTEXT7_API_KEY": "<成员Token>"
       }
     }
@@ -136,10 +135,10 @@ docker logs context7-proxy 2>&1 | grep -i "admin account created"
 ```
 
 > **注意**：需要替换两个值：
-> - `CONTEXT7_API_URL`：代理服务的实际可访问地址
->   - 同一台机器：`http://127.0.0.1:8070`
->   - 局域网内：`http://<局域网IP>:8070`（如 `http://192.168.1.100:8070`）
->   - 远程服务器：`https://<域名>`（如 `https://c7.example.com`）
+> - `url`：代理服务的实际可访问地址
+>   - 同一台机器：`http://127.0.0.1:8070/mcp`
+>   - 局域网内：`http://<局域网IP>:8070/mcp`（如 `http://192.168.1.100:8070/mcp`）
+>   - 远程服务器：`https://<域名>/mcp`（如 `https://c7.example.com/mcp`）
 > - `CONTEXT7_API_KEY`：管理员在「成员管理」中创建的成员 Token
 >
 > 登录管理面板后，「设置」页面会自动根据当前访问地址生成 MCP 配置模板。

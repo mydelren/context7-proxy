@@ -12,7 +12,7 @@ import (
 )
 
 func Run(addr string, handler http.Handler) {
-	srv := &http.Server{Addr: addr, Handler: handler, ReadTimeout: 60 * time.Second, WriteTimeout: 60 * time.Second}
+	srv := &http.Server{Addr: addr, Handler: handler, ReadTimeout: 60 * time.Second}
 	go func() {
 		log.Printf("Listening on %s", addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
